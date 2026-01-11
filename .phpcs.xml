@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<ruleset name="gatherpress-cache-invalidation-hooks">
+	<description>Coding standards for gatherpress-cache-invalidation-hooks</description>
+
+	<file>.</file>
+	<arg name="basepath" value="./"/><!-- Strip the file paths down to the relevant bit -->
+
+	<exclude-pattern>*/build/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	
+	<!-- Rules: figuren.theater Coding Standards -->
+	<rule ref="figurentheater" />
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="gatherpress"/>
+				<element value="__NAMESPACE__"/>
+			</property>
+
+		</properties>
+	</rule> 
+	<rule ref="WordPress">
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName" />
+		<exclude name="WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound"></exclude>
+	</rule>
+	<rule ref="Universal">
+		<exclude name="Universal.Lists.DisallowShortListSyntax"/>
+		<exclude name="Universal.Namespaces.EnforceCurlyBraceSyntax.Forbidden" />
+		<exclude name="Universal.PHP.RequireExitDieParentheses.Missing" />
+		<exclude name="Universal.Classes.RequireFinalClass.NonFinalClassFound" />
+		<exclude name="Universal.Files.SeparateFunctionsFromOO.Mixed" />
+	</rule>
+</ruleset>
