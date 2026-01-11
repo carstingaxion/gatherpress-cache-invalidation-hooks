@@ -15,9 +15,15 @@ Cache Invalidation system based on event end dates, similar to WordPress schedul
 
 ## Description
 
-### What is the Cron Scheduler?
-
 The Cron Scheduler is an event-driven system that automatically executes actions when GatherPress events reach their end time. Think of it as WordPress's scheduled post system, but instead of publishing posts at a future date, it triggers cleanup tasks (cache invalidation, notifications, etc.) when events conclude.
+
+## Installation
+
+1. Upload the plugin files to `/wp-content/plugins/gatherpress-cache-invalidation-hooks`
+2. Activate the plugin through the 'Plugins' screen in WordPress
+3. The scheduler automatically activates if GatherPress is installed
+
+## Frequently Asked Questions
 
 ### Why Was It Built?
 
@@ -50,17 +56,6 @@ The system operates in four phases:
 4. **Status Change Handling**
    * If event is unpublished (draft, trash or delete), scheduled job is cancelled
 
-## Installation
-
-1. Upload the plugin files to `/wp-content/plugins/gatherpress-cache-invalidation-hooks`
-2. Activate the plugin through the 'Plugins' screen in WordPress
-3. The scheduler automatically activates if GatherPress is installed
-
-## Frequently Asked Questions
-
-### What is this plugin for?
-
-The Cron Scheduler is an event-driven system that automatically executes actions when GatherPress events reach their end time. Think of it as WordPress's scheduled post system, but instead of publishing posts at a future date, it triggers cleanup tasks (cache invalidation, notifications, etc.) when events conclude.
 
 ### Does this work only with GatherPress events?
 
