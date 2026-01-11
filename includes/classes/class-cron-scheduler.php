@@ -133,11 +133,12 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			$event = new Core\Event( $event_id );
 			
 			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || ! $event->event instanceof \WP_Post || self::POST_TYPE !== $event->event->post_type ) {
+			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
 				return;
 			}
 
 			// Ensure the event has past using GatherPress's validation.
+			// @phpstan-ignore-next-line.
 			if ( ! method_exists( $event, 'has_event_past' ) || ! $event->has_event_past() ) {
 				return;
 			}
@@ -153,7 +154,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			 * @param int        $event_id The ID of the event that ended.
 			 * @param Core\Event $event    The GatherPress event object.
 			 */
-			do_action( ACTION_HOOK, $event_id, $event );
+			do_action( self::ACTION_HOOK, $event_id, $event );
 		}
 
 		/**
@@ -184,19 +185,15 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			 * @param array<string> $cache_keys Array of cache keys to invalidate.
 			 * @param int           $event_id   The event ID.
 			 */
-			$cache_keys = apply_filters(
+			$cache_keys = (array) apply_filters(
 				'gatherpress_event_end_cache_keys',
 				$default_keys,
 				$event_id
 			);
 
-			// Ensure we have an array of strings.
-			if ( ! is_array( $cache_keys ) ) {
-				$cache_keys = $default_keys;
-			}
-
 			// Clear each cache key.
 			foreach ( $cache_keys as $key ) {
+				// @phpstan-ignore-next-line
 				if ( is_string( $key ) && ! empty( $key ) ) {
 					wp_cache_delete( $key, 'gatherpress' );
 				}

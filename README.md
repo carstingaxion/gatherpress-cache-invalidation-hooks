@@ -9,6 +9,10 @@
 
 Cache Invalidation system based on event end dates, similar to WordPress scheduled posts, but for GatherPress.
 
+[![Build, test & measure](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/actions/workflows/build-test-measure.yml/badge.svg?branch=main)](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/actions/workflows/build-test-measure.yml)
+
+---
+
 ## Description
 
 ### What is the Cron Scheduler?
@@ -45,7 +49,6 @@ The system operates in four phases:
 
 4. **Status Change Handling**
    * If event is unpublished (draft, trash or delete), scheduled job is cancelled
-
 
 ## Installation
 
@@ -103,7 +106,6 @@ add_action( 'pre_get_posts', function( $query ) {
 } );
 ```
 
-
 ## Developer Documentation
 
 Developers can extend the system through filters and actions:
@@ -122,7 +124,6 @@ Developers can extend the system through filters and actions:
         wp_mail( 'admin@example.com', 'Event Ended', "Event {$event_id} has concluded." );
     }, 10, 2 );
     ```
-
 
 ### Filter Hooks
 

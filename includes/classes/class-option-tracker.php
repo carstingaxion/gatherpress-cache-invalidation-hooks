@@ -196,7 +196,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			 * @var array<int> $tracked_ids
 			 */
 			$tracked_ids = array_filter(
-				array_map( 'intval', $tracked_ids_raw ),
+				array_map( '\intval', $tracked_ids_raw ),
 				function ( $id ) {
 					return $id > 0;
 				}
@@ -211,13 +211,14 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			foreach ( $tracked_ids as $event_id ) {
 				$event = new Core\Event( $event_id );
 				
-				if ( ! isset( $event->event ) || ! $event->event instanceof \WP_Post || self::POST_TYPE !== $event->event->post_type ) {
+				if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
 					// Clean up tracking for non-existent events.
 					$this->remove_from_tracking( $event_id );
 					continue;
 				}
 				
 				// Check if event has ended.
+				// @phpstan-ignore-next-line.
 				if ( method_exists( $event, 'has_event_past' ) && $event->has_event_past() ) {
 
 					/**
@@ -264,7 +265,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			 * 
 			 * @var array<int> $tracked_ids
 			 */
-			$tracked_ids = array_map( 'intval', $tracked_ids_raw );
+			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
 			
 			// Add the new ID.
 			$tracked_ids[] = $event_id;
@@ -302,7 +303,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			 * 
 			 * @var array<int> $tracked_ids
 			 */
-			$tracked_ids = array_map( 'intval', $tracked_ids_raw );
+			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
 			
 			// Cleanly removes all instances of the target ID.
 			$tracked_ids = array_diff( $tracked_ids, array( $event_id ) );
