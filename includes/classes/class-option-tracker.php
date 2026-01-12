@@ -91,7 +91,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 
 			add_action( 'transition_post_status', array( $this, 'handle_status_transition' ), 10, 3 );
 			add_action( 'before_delete_post', array( $this, 'remove_from_tracking' ) );
-			add_action( 'gatherpress_event_ended', array( $this, 'remove_from_tracking' ) );
+			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ) );
 			
 			// Schedule the daily check if not already scheduled.
 			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
