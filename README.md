@@ -83,7 +83,7 @@ When the upcoming events option tracker is enabled, you can use it to efficientl
  */
 add_action( 'pre_get_posts', function( $query ) {
     // The DB option will only be available, if this filter is enabled.
-    if ( true !== apply_filter( 'gatherpress_upcoming_events_option_tracker_enabled', false ) ) {
+    if ( true !== apply_filters( 'gatherpress_upcoming_events_option_tracker_enabled', false ) ) {
         return;
     }
     if (
