@@ -43,7 +43,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * @since 0.1.0
 		 * @var string
 		 */
-		private const CRON_HOOK = 'gatherpress_check_ended_events';
+		const CRON_HOOK = 'gatherpress_check_ended_events';
 
 		/**
 		 * The wp_option key for tracking upcoming events.
@@ -51,7 +51,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * @since 0.1.0
 		 * @var string
 		 */
-		private const OPTION_KEY = 'gatherpress_upcoming_events';
+		const OPTION_KEY = 'gatherpress_upcoming_events';
 
 		/**
 		 * The GatherPress event custom post type slug.
@@ -59,7 +59,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * @since 0.1.0
 		 * @var string
 		 */
-		private const POST_TYPE = 'gatherpress_event';
+		const POST_TYPE = 'gatherpress_event';
 
 		/**
 		 * Constructor for the Setup class.
@@ -107,7 +107,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 *
 		 * @return bool True if upcoming events option tracker is enabled, false otherwise.
 		 */
-		private function is_tracker_enabled(): bool {
+		public function is_tracker_enabled(): bool {
 			/**
 			 * Filter whether to enable the upcoming events option tracker tracking system.
 			 *

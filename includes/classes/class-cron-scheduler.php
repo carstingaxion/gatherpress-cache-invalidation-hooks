@@ -220,7 +220,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 */
 		private function add_scheduled_cron( int $post_id ): void {
 			
-			$end_date = get_post_meta( $post_id, 'gatherpress_event_end_date', true );
+			$end_date = get_post_meta( $post_id, 'gatherpress_datetime_end_gmt', true );
 			
 			// Validate end date exists and is a string.
 			if ( ! is_string( $end_date ) || empty( $end_date ) ) {
