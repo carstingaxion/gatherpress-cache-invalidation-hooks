@@ -89,7 +89,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			// and trigger 'gatherpress_cache_invalidation_hooks_new_upcoming' or
 			// 'gatherpress_cache_invalidation_hooks_clear' when data has changed.
 			add_action( 'transition_post_status', array( $this, 'handle_transition_post_status' ), 10, 3 );
-			add_action( 'updated_postmeta', array( $this, 'handle_updated_postmeta' ), 10, 4 );
+			add_action( 'updated_postmeta', array( $this, 'handle_updated_postmeta' ), 10, 3 );
 			add_action( 'before_delete_post', array( $this, 'handle_before_delete_post' ) );
 
 			// Why not hook adding and clearing directly on the former WP core action?
@@ -139,7 +139,27 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 		}
 
-		public function handle_updated_postmeta( int $meta_id, int $object_id, string $meta_key, mixed $meta_value ): void {
+		/**
+		 * Handle event date changes to manage event scheduling.
+		 *
+		 * This is additionally needed to the core scheduling system,
+		 * because events are not identified by post_status only.
+		 * This method acts on event-date changes.
+		 *
+		 * When an event is re-scheduled, hooks are called for both,
+		 * whether the new event date is upcoming or not.
+		 *
+		 * Runs immediately after updating a post's metadata.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param int    $meta_id   ID of updated metadata entry.
+		 * @param int    $object_id Post ID.
+		 * @param string $meta_key  Metadata key.
+		 *
+		 * @return void
+		 */
+		public function handle_updated_postmeta( int $meta_id, int $object_id, string $meta_key ): void {
 
 			if ( self::POST_META_KEY !== $meta_key ) {
 				return;
@@ -147,20 +167,30 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			$event = $this->is_valid_future_event( $object_id );
 
-			if ( $event instanceof Core\Event ) {
+			if ( $event instanceof Core\Event && $event->event instanceof \WP_Post ) {
 				// Event end date was changed and is still in the future - clear and re-schedule the end action.
 				do_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', $event->event->ID, $event->event );
 			} else {
-				// Event end date was changed to the past - clear the schedule.
-				do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event );
+				$event = $this->is_valid_past_event( $object_id );
+				if ( $event instanceof Core\Event && $event->event instanceof \WP_Post ) {
+					// Event end date was changed to the past - clear the schedule.
+					do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event );
+				}
 			}
 		}
 
+		/**
+		 * Runs before a post is deleted, at the start of wp_delete_post().
+		 *
+		 * @param int $post_id Post ID.
+		 *
+		 * @return void
+		 */
 		public function handle_before_delete_post( int $post_id ): void {
 
-			$event = $this->is_valid_future_event( $object_id );
+			$event = $this->is_valid_future_event( $post_id );
 
-			if ( $event instanceof Core\Event ) {
+			if ( $event instanceof Core\Event && $event->event instanceof \WP_Post ) {
 				// The Event to delete is upcoming - clear the schedule.
 				do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event );
 			}
