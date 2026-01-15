@@ -101,11 +101,11 @@ function gatherpress_cache_invalidation_hooks_deactivate(): void {
 
 	if ( $option_tracker->is_tracker_enabled() ) {
 		// Find the timestamp of the next scheduled daily event.
-		$timestamp = wp_next_scheduled(  $option_tracker::CRON_HOOK );
+		$timestamp = wp_next_scheduled( $option_tracker::CRON_HOOK );
 		
 		// If an event is scheduled, remove it.
 		if ( is_int( $timestamp ) && $timestamp > 0 ) {
-			wp_unschedule_event( $timestamp,  $option_tracker::CRON_HOOK );
+			wp_unschedule_event( $timestamp, $option_tracker::CRON_HOOK );
 		}
 
 		// Delete the tracking option.

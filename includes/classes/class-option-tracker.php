@@ -43,7 +43,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * @since 0.1.0
 		 * @var string
 		 */
-		const CRON_HOOK = 'gatherpress_check_ended_events';
+		const CRON_HOOK = 'gatherpress_validate_events_ended';
 
 		/**
 		 * The wp_option key for tracking upcoming events.
@@ -89,15 +89,18 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 				return;
 			}
 
-			add_action( 'transition_post_status', array( $this, 'handle_status_transition' ), 10, 3 );
-			add_action( 'before_delete_post', array( $this, 'remove_from_tracking' ) );
+			// Waiting for post status transitions, post_meta changes or post delete.
+			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_to_tracking' ) );
+			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'remove_from_tracking' ) );
+
+			// An event ended regularly, remove it from tracking.
 			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ) );
 			
 			// Schedule the daily check if not already scheduled.
 			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
 				wp_schedule_event( time(), 'daily', self::CRON_HOOK );
 			}
-			add_action( self::CRON_HOOK, array( $this, 'check_ended_events' ) );
+			add_action( self::CRON_HOOK, array( $this, 'validate_events_ended' ) );
 		}
 
 		/**
@@ -124,36 +127,6 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			return apply_filters( 'gatherpress_upcoming_events_option_tracker_enabled', false );
 		}
 
-		/**
-		 * Handle post status transitions to manage redundant tracking of upcoming events.
-		 *
-		 * Adds the Event to the tracking, when published.
-		 * When unpublished (draft, private, trash), clears the schedule
-		 * and removes the event from tracking.
-		 *
-		 * @since 0.1.0
-		 *
-		 * @param string   $new_status New post status (e.g., 'publish', 'draft').
-		 * @param string   $old_status Previous post status.
-		 * @param \WP_Post $post       The post object being transitioned.
-		 *
-		 * @return void
-		 */
-		public function handle_status_transition( string $new_status, string $old_status, \WP_Post $post ): void {
-			if ( self::POST_TYPE !== $post->post_type ) {
-				return;
-			}
-
-			// Event is being published - schedule the end action.
-			if ( 'publish' === $new_status && 'publish' !== $old_status ) {
-				$this->add_to_tracking( $post->ID );
-			}
-
-			// Event is being unpublished - clear the schedule.
-			if ( 'publish' === $old_status && 'publish' !== $new_status ) {
-				$this->remove_from_tracking( $post->ID );
-			}
-		}
 
 		/**
 		 * Daily cron job to check for events that ended but weren't processed.
@@ -174,13 +147,13 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * 2. Loop through each ID
 		 * 3. Check if event has ended using GatherPress's validation
 		 * 4. If ended, trigger the normal end handling
-		 * 5. Remove from tracking (handled by handle_event_ended)
+		 * 5. Remove from tracking (handled by validate_event_ended)
 		 *
 		 * @since 0.1.0
 		 *
 		 * @return void
 		 */
-		public function check_ended_events(): void {
+		public function validate_events_ended(): void {
 
 			// Get all tracked event IDs.
 			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
@@ -251,7 +224,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 *
 		 * @return void
 		 */
-		private function add_to_tracking( int $event_id ): void {
+		public function add_to_tracking( int $event_id ): void {
 			// Get current tracking list.
 			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
 			

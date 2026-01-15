@@ -55,6 +55,14 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		const POST_TYPE = 'gatherpress_event';
 
 		/**
+		 * The GatherPress event end post_meta key.
+		 *
+		 * @since 0.1.0
+		 * @var string
+		 */
+		const POST_META_KEY = 'gatherpress_datetime_end_gmt';
+
+		/**
 		 * Constructor for the Setup class.
 		 *
 		 * Initializes and sets up various components of the plugin.
@@ -77,9 +85,23 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 * @return void
 		 */
 		protected function setup_hooks(): void {
-			add_action( 'transition_post_status', array( $this, 'handle_status_transition' ), 10, 3 );
-			add_action( 'before_delete_post', array( $this, 'clear_scheduled_cron' ) );
-			add_action( self::CRON_HOOK, array( $this, 'handle_event_ended' ), 10, 1 );
+			// Waiting for post status transitions, post_meta changes or post delete to happen,
+			// and trigger 'gatherpress_cache_invalidation_hooks_new_upcoming' or
+			// 'gatherpress_cache_invalidation_hooks_clear' when data has changed.
+			add_action( 'transition_post_status', array( $this, 'handle_transition_post_status' ), 10, 3 );
+			add_action( 'updated_postmeta', array( $this, 'handle_updated_postmeta' ), 10, 4 );
+			add_action( 'before_delete_post', array( $this, 'handle_before_delete_post' ) );
+
+			// Why not hook adding and clearing directly on the former WP core action?
+			// Because it helps to not DRY in the Option_Tracker class.
+			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_scheduled_cron' ) );
+			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'clear_scheduled_cron' ) );
+			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'invalidate_caches' ) );
+
+			// A scheduled event-end is reached, validate if ended and trigger the main hook, if so.
+			add_action( self::CRON_HOOK, array( $this, 'validate_event_ended' ), 10, 1 );
+
+			// An event ended regularly, clear scheduling and delete caches.
 			add_action( self::ACTION_HOOK, array( $this, 'clear_scheduled_cron' ) );
 			add_action( self::ACTION_HOOK, array( $this, 'invalidate_caches' ) );
 		}
@@ -99,19 +121,48 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 *
 		 * @return void
 		 */
-		public function handle_status_transition( string $new_status, string $old_status, \WP_Post $post ): void {
-			if ( self::POST_TYPE !== $post->post_type ) {
+		public function handle_transition_post_status( string $new_status, string $old_status, \WP_Post $post ): void {
+
+			$event = $this->is_valid_future_event( $post );
+			if ( false === $event ) {
 				return;
 			}
 
 			// Event is being published - schedule the end action.
 			if ( 'publish' === $new_status && 'publish' !== $old_status ) {
-				$this->add_scheduled_cron( $post->ID );
+				do_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', $post->ID, $post );
 			}
-
+			
 			// Event is being unpublished - clear the schedule.
 			if ( 'publish' === $old_status && 'publish' !== $new_status ) {
-				$this->clear_scheduled_cron( $post->ID );
+				do_action( 'gatherpress_cache_invalidation_hooks_clear', $post->ID, $post );
+			}
+		}
+
+		public function handle_updated_postmeta( int $meta_id, int $object_id, string $meta_key, mixed $meta_value ): void {
+
+			if ( self::POST_META_KEY !== $meta_key ) {
+				return;
+			}
+
+			$event = $this->is_valid_future_event( $object_id );
+
+			if ( $event instanceof Core\Event ) {
+				// Event end date was changed and is still in the future - clear and re-schedule the end action.
+				do_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', $event->event->ID, $event->event );
+			} else {
+				// Event end date was changed to the past - clear the schedule.
+				do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event );
+			}
+		}
+
+		public function handle_before_delete_post( int $post_id ): void {
+
+			$event = $this->is_valid_future_event( $object_id );
+
+			if ( $event instanceof Core\Event ) {
+				// The Event to delete is upcoming - clear the schedule.
+				do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event );
 			}
 		}
 
@@ -128,18 +179,10 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 *
 		 * @return void
 		 */
-		public function handle_event_ended( int $event_id ): void {
+		public function validate_event_ended( int $event_id ): void {
 
-			$event = new Core\Event( $event_id );
-			
-			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
-				return;
-			}
-
-			// Ensure the event has past using GatherPress's validation.
-			// @phpstan-ignore-next-line.
-			if ( ! method_exists( $event, 'has_event_past' ) || ! $event->has_event_past() ) {
+			$event = $this->is_valid_past_event( $event_id );
+			if ( false === $event ) {
 				return;
 			}
 
@@ -218,9 +261,9 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 *
 		 * @return void
 		 */
-		private function add_scheduled_cron( int $post_id ): void {
+		public function add_scheduled_cron( int $post_id ): void {
 			
-			$end_date = get_post_meta( $post_id, 'gatherpress_datetime_end_gmt', true );
+			$end_date = get_post_meta( $post_id, self::POST_META_KEY, true );
 			
 			// Validate end date exists and is a string.
 			if ( ! is_string( $end_date ) || empty( $end_date ) ) {
@@ -269,6 +312,54 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			if ( is_int( $timestamp ) && $timestamp > 0 ) {
 				wp_unschedule_event( $timestamp, self::CRON_HOOK, array( $post_id ) );
 			}
+		}
+
+		private function is_valid_future_event( int|\WP_Post $post ): Core\Event|false {
+
+			if ( $post instanceof \WP_Post ) {
+				$event_id = $post->ID;
+			} else {
+				$event_id = $post;
+			}
+
+			$event = new Core\Event( $event_id );
+			
+			// Validate the event still exists and is the correct post type.
+			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+				return false;
+			}
+
+			// Ensure the event has past using GatherPress's validation.
+			// @phpstan-ignore-next-line.
+			if ( ! method_exists( $event, 'has_event_past' ) || $event->has_event_past() ) {
+				return false;
+			}
+
+			return $event;
+		}
+
+		private function is_valid_past_event( int|\WP_Post $post ): Core\Event|false {
+
+			if ( $post instanceof \WP_Post ) {
+				$event_id = $post->ID;
+			} else {
+				$event_id = $post;
+			}
+
+			$event = new Core\Event( $event_id );
+			
+			// Validate the event still exists and is the correct post type.
+			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+				return false;
+			}
+
+			// Ensure the event has past using GatherPress's validation.
+			// @phpstan-ignore-next-line.
+			if ( ! method_exists( $event, 'has_event_past' ) || ! $event->has_event_past() ) {
+				return false;
+			}
+
+			return $event;
 		}
 	}
 }
