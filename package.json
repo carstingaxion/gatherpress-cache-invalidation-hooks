@@ -1,6 +1,6 @@
 {
 	"name": "gatherpress-cache-invalidation-hooks",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Cache Invalidation system based on event end dates, similar to WordPress scheduled posts, but for GatherPress.",
     "author": "Carsten Bach",
     "license": "GPL-2.0-or-later",
