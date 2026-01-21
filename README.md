@@ -3,7 +3,7 @@
 **Contributors:**      carstenbach & WordPress Telex  
 **Tags:**              gatherpress, cache, invalidation, wp-cron  
 **Tested up to:**      6.8  
-**Stable tag:**        0.1.0  
+**Stable tag:**        0.2.0  
 **License:**           GPLv2 or later  
 **License URI:**       [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html)  
 
@@ -153,3 +153,7 @@ Developers can extend the system through filters and actions:
 3. Wait for end time, verify caches cleared
 4. Test unpublishing: ensure cron job removed
 5. Test deletion: confirm cleanup runs
+
+## Changelog
+
+All notable changes to this project will be documented in the [CHANGELOG.md](CHANGELOG.md).
