@@ -5,13 +5,9 @@ on:
   release:
     types: [prereleased]
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   call-workflow-update-changelog:
     uses: figuren-theater/.github/.github/workflows/prerelease-changelog-update.yml@main
     secrets:
-      BOT_TOKEN: ${{ secrets.USED_AS_BOT_TOKEN }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN || github.token }}
 

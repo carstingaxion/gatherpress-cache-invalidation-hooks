@@ -21,4 +21,5 @@ jobs:
   call-workflow-release-drafter:
     uses: figuren-theater/.github/.github/workflows/release-drafter.yml@main
     secrets:
-      BOT_TOKEN: ${{ secrets.USED_AS_BOT_TOKEN }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
