@@ -19,8 +19,8 @@
         "url": "https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/issues"
     },
 	"devDependencies": {
-		"@wordpress/i18n": "^5.4.0",
-		"@wordpress/scripts": "^28.4.0"
+		"@wordpress/i18n": "^6.11.0",
+		"@wordpress/scripts": "^31.3.0"
 	},
 	"scripts": {
 		"check-engines": "wp-scripts check-engines",
