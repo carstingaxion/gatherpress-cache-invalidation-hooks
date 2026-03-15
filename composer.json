@@ -30,6 +30,7 @@
         "figuren-theater/code-quality": "*",
         "phpunit/phpunit": "^9.6",
         "wp-phpunit/wp-phpunit": "^6.8",
+        "wpackagist-plugin/gatherpress": "*",
         "yoast/phpunit-polyfills": "^2.0"
     },
     "repositories": [
