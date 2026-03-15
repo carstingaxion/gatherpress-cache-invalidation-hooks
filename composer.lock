@@ -4,9 +4,61 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "09b1690b4cb2fd512e22260f3dbf4f5b",
+    "content-hash": "bacc052c016d15e0bfc112ac89806547",
     "packages": [],
     "packages-dev": [
+        {
+            "name": "akirk/extract-wp-hooks",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/akirk/extract-wp-hooks.git",
+                "reference": "c0b59d9607347a0390627756c095c52d5f98016a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/akirk/extract-wp-hooks/zipball/c0b59d9607347a0390627756c095c52d5f98016a",
+                "reference": "c0b59d9607347a0390627756c095c52d5f98016a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.0|^10.0|^11.0",
+                "wp-coding-standards/wpcs": "^3.0"
+            },
+            "default-branch": true,
+            "bin": [
+                "extract-wp-hooks.php"
+            ],
+            "type": "library",
+            "scripts": {
+                "test": [
+                    "phpunit tests/"
+                ],
+                "phpcs": [
+                    "phpcs"
+                ],
+                "phpcbf": [
+                    "phpcbf"
+                ]
+            },
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Alex Kirk"
+                }
+            ],
+            "description": "Extract available WordPress hooks for a Github Wiki",
+            "support": {
+                "source": "https://github.com/akirk/extract-wp-hooks/tree/1.4.0",
+                "issues": "https://github.com/akirk/extract-wp-hooks/issues"
+            },
+            "time": "2026-01-31T11:32:34+00:00"
+        },
         {
             "name": "automattic/vipwpcs",
             "version": "3.0.1",
@@ -3788,7 +3840,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "akirk/extract-wp-hooks": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],

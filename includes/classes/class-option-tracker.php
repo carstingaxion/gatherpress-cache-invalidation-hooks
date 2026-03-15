@@ -119,6 +119,12 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			 * database writes on every event status change, so it's disabled by default.
 			 *
 			 * Enable for high-value deployments where missing an event cleanup would be critical.
+			 * 
+			 * @example 
+			 * ```php
+			 * // Enable upcoming events option tracker
+			 * add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
+			 * ```
 			 *
 			 * @since 0.1.0
 			 *

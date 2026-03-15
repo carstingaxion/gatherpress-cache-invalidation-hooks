@@ -103,47 +103,7 @@ add_action( 'pre_get_posts', function( $query ) {
 
 ## Developer Documentation
 
-Developers can extend the system through filters and actions:
-
-### Action Hooks
-
-* `gatherpress_event_ended`
-
-    Fires when an event ends (receives $event_id, $event)
-
-    ```php
-    // Add custom cleanup when events end
-    add_action( 'gatherpress_event_ended', function( $event_id, $event ) {
-        // Your custom logic here
-        delete_transient( "my_event_data_{$event_id}" );
-        wp_mail( 'admin@example.com', 'Event Ended', "Event {$event_id} has concluded." );
-    }, 10, 2 );
-    ```
-
-### Filter Hooks
-
-* `gatherpress_event_end_cache_keys`
-
-    Modify cache keys to invalidate
-
-    ```php
-    // Extend cache keys to invalidate
-    add_filter( 'gatherpress_event_end_cache_keys', function( $keys, $event_id ) {
-        $keys[] = 'my_custom_cache_key';
-        $keys[] = "event_category_{$event_id}";
-        return $keys;
-    }, 10, 2 );
-    ```
-
-* `gatherpress_upcoming_events_option_tracker_enabled`
-
-    Enable/disable upcoming events option tracker for mission-critical sites
-
-    ```php
-    // Enable upcoming events option tracker
-    add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
-    ```
-
+Developers can extend the system through filters and actions, which are documented in [`docs/developer/hooks/Hooks.md`](docs/developer/hooks/Hooks.md).
 
 
 ### Testing

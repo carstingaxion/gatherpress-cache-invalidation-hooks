@@ -222,12 +222,22 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			 * Central hook for event end processing.
 			 * All cleanup operations (cache invalidation, tracking removal, etc.) 
 			 * are hooked to this action at various priorities.
+			 * 
+			 * @example
+			 * ```php
+			 * // Send email when events end
+			 * add_action( 'gatherpress_event_ended', function( $event_id, $event ) {
+			 *     // Your custom logic here
+			 *     delete_transient( "my_event_data_{$event_id}" );
+			 *     wp_mail( 'admin@example.com', 'Event Ended', "Event {$event_id} has concluded." );
+			 * }, 10, 2 );
+			 *```
 			 *
 			 * @since 0.1.0
-			 * @param int        $event_id The ID of the event that ended.
-			 * @param Core\Event $event    The GatherPress event object.
+			 * @param int                     $event_id The ID of the event that ended.
+			 * @param \GatherPress\Core\Event $event    The GatherPress event object.
 			 */
-			do_action( self::ACTION_HOOK, $event_id, $event );
+			do_action( 'gatherpress_event_ended', $event_id, $event ); // self::ACTION_HOOK removed for auto-docs generation by akirk/extract-wp-hooks.
 		}
 
 		/**
@@ -252,6 +262,16 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			/**
 			 * Filter cache keys to invalidate when an event ends.
+			 * 
+			 * @example
+			 * ```php
+			 * // Extend cache keys to invalidate
+			 * add_filter( 'gatherpress_event_end_cache_keys', function( $keys, $event_id ) {
+			 *     $keys[] = 'my_custom_cache_key';
+			 *     $keys[] = "event_category_{$event_id}";
+			 *     return $keys;
+			 * }, 10, 2 );
+			 * ```
 			 *
 			 * @since 0.1.0
 			 *

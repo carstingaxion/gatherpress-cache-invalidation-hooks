@@ -26,15 +26,20 @@
         "source": "https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks"
     },
     "require-dev": {
+        "akirk/extract-wp-hooks": "dev-main",
         "figuren-theater/code-quality": "*",
-		"phpunit/phpunit": "^9.6",
-		"wp-phpunit/wp-phpunit": "^6.8",
-		"yoast/phpunit-polyfills": "^2.0"
+        "phpunit/phpunit": "^9.6",
+        "wp-phpunit/wp-phpunit": "^6.8",
+        "yoast/phpunit-polyfills": "^2.0"
     },
     "repositories": [
         {
             "type": "composer",
             "url": "https://wpackagist.org"
+        },
+        {
+            "type": "vcs",
+            "url": "git@github.com:akirk/extract-wp-hooks.git"
         }
     ],
     "config": {
@@ -49,14 +54,14 @@
         },
         "sort-packages": true
     },
-	"scripts": {
-		"test": "phpunit",
-		"test:unit": "phpunit --testsuite unit",
-		"test:integration": "phpunit --testsuite integration"
-	},
     "extra": {
         "altis": {
             "install-overrides": []
         }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:integration": "phpunit --testsuite integration",
+        "test:unit": "phpunit --testsuite unit"
     }
 }
