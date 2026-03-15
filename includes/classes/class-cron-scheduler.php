@@ -284,6 +284,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 				$event_id
 			);
 
+			// @phpstan-ignore-next-line
 			if ( ! is_array( $cache_keys ) ) {
 				$cache_keys = $default_keys;
 			}
