@@ -278,11 +278,15 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			 * @param array<string> $cache_keys Array of cache keys to invalidate.
 			 * @param int           $event_id   The event ID.
 			 */
-			$cache_keys = (array) apply_filters(
+			$cache_keys = apply_filters(
 				'gatherpress_event_end_cache_keys',
 				$default_keys,
 				$event_id
 			);
+
+			if ( ! is_array( $cache_keys ) ) {
+				$cache_keys = $default_keys;
+			}
 
 			// Clear each cache key.
 			foreach ( $cache_keys as $key ) {
