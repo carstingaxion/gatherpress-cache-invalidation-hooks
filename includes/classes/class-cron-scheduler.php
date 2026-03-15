@@ -222,12 +222,22 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			 * Central hook for event end processing.
 			 * All cleanup operations (cache invalidation, tracking removal, etc.) 
 			 * are hooked to this action at various priorities.
+			 * 
+			 * @example
+			 * ```php
+			 * // Send email when events end
+			 * add_action( 'gatherpress_event_ended', function( $event_id, $event ) {
+			 *     // Your custom logic here
+			 *     delete_transient( "my_event_data_{$event_id}" );
+			 *     wp_mail( 'admin@example.com', 'Event Ended', "Event {$event_id} has concluded." );
+			 * }, 10, 2 );
+			 *```
 			 *
 			 * @since 0.1.0
-			 * @param int        $event_id The ID of the event that ended.
-			 * @param Core\Event $event    The GatherPress event object.
+			 * @param int                     $event_id The ID of the event that ended.
+			 * @param \GatherPress\Core\Event $event    The GatherPress event object.
 			 */
-			do_action( self::ACTION_HOOK, $event_id, $event );
+			do_action( 'gatherpress_event_ended', $event_id, $event ); // self::ACTION_HOOK removed for auto-docs generation by akirk/extract-wp-hooks.
 		}
 
 		/**
@@ -252,17 +262,32 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			/**
 			 * Filter cache keys to invalidate when an event ends.
+			 * 
+			 * @example
+			 * ```php
+			 * // Extend cache keys to invalidate
+			 * add_filter( 'gatherpress_event_end_cache_keys', function( $keys, $event_id ) {
+			 *     $keys[] = 'my_custom_cache_key';
+			 *     $keys[] = "event_category_{$event_id}";
+			 *     return $keys;
+			 * }, 10, 2 );
+			 * ```
 			 *
 			 * @since 0.1.0
 			 *
 			 * @param array<string> $cache_keys Array of cache keys to invalidate.
 			 * @param int           $event_id   The event ID.
 			 */
-			$cache_keys = (array) apply_filters(
+			$cache_keys = apply_filters(
 				'gatherpress_event_end_cache_keys',
 				$default_keys,
 				$event_id
 			);
+
+			// @phpstan-ignore-next-line
+			if ( ! is_array( $cache_keys ) ) {
+				$cache_keys = $default_keys;
+			}
 
 			// Clear each cache key.
 			foreach ( $cache_keys as $key ) {
@@ -344,6 +369,13 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 		}
 
+		/**
+		 * Validate the given post to be a existing gatherpress_event with an end date in the future.
+		 *
+		 * @param  int|\WP_Post $post The post to validate as future event, either as post ID or WP_Post object.
+		 *
+		 * @return Core\Event|false
+		 */
 		private function is_valid_future_event( int|\WP_Post $post ): Core\Event|false {
 
 			if ( $post instanceof \WP_Post ) {
@@ -368,6 +400,13 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			return $event;
 		}
 
+		/**
+		 * Validate the given post to be a existing gatherpress_event with an end date in the past.
+		 *
+		 * @param  int|\WP_Post $post The post to validate as past event, either as post ID or WP_Post object.
+		 *
+		 * @return Core\Event|false
+		 */
 		private function is_valid_past_event( int|\WP_Post $post ): Core\Event|false {
 
 			if ( $post instanceof \WP_Post ) {

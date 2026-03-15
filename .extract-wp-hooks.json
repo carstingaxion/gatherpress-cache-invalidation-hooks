@@ -1,0 +1,11 @@
+{
+	"namespace": "GatherPress_Cache_Invalidation_Hooks",
+	"base_dir": ".",
+	"wiki_directory": "docs/developer/hooks",
+	"github_blob_url": "https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/",
+	"exclude_dirs": [
+		"vendor",
+		"test"
+	],
+	"github_wiki": false
+}
