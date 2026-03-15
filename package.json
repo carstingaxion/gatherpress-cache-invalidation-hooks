@@ -40,6 +40,7 @@
     "env:start": "wp-env start",
     "env:stop": "wp-env stop",
     "env:destroy": "wp-env destroy",
+    "pretest:php": "wp-env start",
     "test:php": "wp-env run tests-cli --env-cwd='wp-content/plugins/gatherpress-cache-invalidation-hooks' bash -c 'WP_TESTS_DIR=/wordpress-phpunit vendor/bin/phpunit'",
     "test:php:unit": "wp-env run tests-cli --env-cwd='wp-content/plugins/gatherpress-cache-invalidation-hooks' bash -c 'WP_TESTS_DIR=/wordpress-phpunit vendor/bin/phpunit --testsuite unit'",
     "test:php:integration": "wp-env run tests-cli --env-cwd='wp-content/plugins/gatherpress-cache-invalidation-hooks' bash -c 'WP_TESTS_DIR=/wordpress-phpunit vendor/bin/phpunit --testsuite integration'"
