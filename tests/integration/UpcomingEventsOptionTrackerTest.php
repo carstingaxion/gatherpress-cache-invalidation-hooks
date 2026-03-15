@@ -12,6 +12,12 @@
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 use GatherPress_Cache_Invalidation_Hooks\Option_Tracker;
 
+/**
+ * Tests for the Option_Tracker class and its integration with the cron scheduler.
+ *
+ * Covers enabling/disabling tracking, adding/removing event IDs from tracking,
+ * and the behavior of the validate_events_ended method.
+ */
 class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
 	/**

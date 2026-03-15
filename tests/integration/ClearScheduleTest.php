@@ -11,6 +11,9 @@
 
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 
+/**
+ * Tests for the clear_scheduled_cron method in the Cron_Scheduler class.
+ */
 class ClearScheduleTest extends WP_UnitTestCase {
 
 	/**

@@ -12,6 +12,9 @@
 
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 
+/**
+ * Tests for event status transitions and their impact on cron scheduling.
+ */
 class StatusTransitionTest extends WP_UnitTestCase {
 
 	/**

@@ -12,6 +12,9 @@
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 use GatherPress_Cache_Invalidation_Hooks\Option_Tracker;
 
+/**
+ * Tests for verifying that all expected hooks are registered.
+ */
 class HookRegistrationTest extends WP_UnitTestCase {
 
 	/**

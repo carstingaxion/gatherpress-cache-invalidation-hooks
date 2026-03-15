@@ -13,6 +13,9 @@
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 use GatherPress_Cache_Invalidation_Hooks\Option_Tracker;
 
+/**
+ * Tests for the Cron_Scheduler and Option_Tracker classes.
+ */
 class SchedulerClassTest extends WP_UnitTestCase {
 
 	/**

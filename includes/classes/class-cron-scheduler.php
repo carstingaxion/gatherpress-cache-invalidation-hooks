@@ -364,6 +364,13 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 		}
 
+		/**
+		 * Validate the given post to be a existing gatherpress_event with an end date in the future.
+		 *
+		 * @param  int|\WP_Post $post The post to validate as future event, either as post ID or WP_Post object.
+		 *
+		 * @return Core\Event|false
+		 */
 		private function is_valid_future_event( int|\WP_Post $post ): Core\Event|false {
 
 			if ( $post instanceof \WP_Post ) {
@@ -388,6 +395,13 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			return $event;
 		}
 
+		/**
+		 * Validate the given post to be a existing gatherpress_event with an end date in the past.
+		 *
+		 * @param  int|\WP_Post $post The post to validate as past event, either as post ID or WP_Post object.
+		 *
+		 * @return Core\Event|false
+		 */
 		private function is_valid_past_event( int|\WP_Post $post ): Core\Event|false {
 
 			if ( $post instanceof \WP_Post ) {
