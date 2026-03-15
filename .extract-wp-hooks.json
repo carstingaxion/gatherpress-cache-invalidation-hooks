@@ -5,7 +5,8 @@
 	"github_blob_url": "https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/",
 	"exclude_dirs": [
 		"vendor",
-		"test"
+		"tests",
+		"wp-content"
 	],
 	"github_wiki": false
 }
