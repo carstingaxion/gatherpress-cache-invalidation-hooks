@@ -31,7 +31,7 @@
         "phpunit/phpunit": "^9.6",
         "wp-phpunit/wp-phpunit": "^6.8",
         "wpackagist-plugin/gatherpress": "*",
-        "yoast/phpunit-polyfills": "^2.0"
+        "yoast/phpunit-polyfills": "^4.0"
     },
     "repositories": [
         {
