@@ -21,7 +21,7 @@ add_filter( 'gatherpress_event_end_cache_keys', function( $keys, $event_id ) {
 
 ## Files
 
-- [includes/classes/class-cron-scheduler.php:281](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L281)
+- [includes/classes/class-cron-scheduler.php:273](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L273)
 ```php
 apply_filters(
 				'gatherpress_event_end_cache_keys',

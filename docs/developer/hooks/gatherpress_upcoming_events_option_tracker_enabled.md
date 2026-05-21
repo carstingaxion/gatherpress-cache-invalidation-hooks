@@ -22,7 +22,7 @@ add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true
 
 ## Files
 
-- [includes/classes/class-option-tracker.php:133](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L133)
+- [includes/classes/class-option-tracker.php:125](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L125)
 ```php
 apply_filters( 'gatherpress_upcoming_events_option_tracker_enabled', false )
 ```
