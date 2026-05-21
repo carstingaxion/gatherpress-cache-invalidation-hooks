@@ -47,14 +47,6 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		const CRON_HOOK = 'gatherpress_event_ended_cron';
 
 		/**
-		 * The GatherPress event custom post type slug.
-		 *
-		 * @since 0.1.0
-		 * @var string
-		 */
-		const POST_TYPE = 'gatherpress_event';
-
-		/**
 		 * The GatherPress event end post_meta key.
 		 *
 		 * @since 0.1.0
@@ -354,9 +346,9 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 */
 		public function clear_scheduled_cron( int $post_id ): void {
 			$post = get_post( $post_id );
-			
-			// Validate post exists and is a GatherPress event.
-			if ( ! $post instanceof \WP_Post || self::POST_TYPE !== $post->post_type ) {
+
+			// Validate post exists and is a GatherPress event-date supporting type.
+			if ( ! $post instanceof \WP_Post || ! post_type_supports( $post->post_type, 'gatherpress-event-date' ) ) {
 				return;
 			}
 
@@ -387,7 +379,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			$event = new Core\Event( $event_id );
 			
 			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+			if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 				return false;
 			}
 
@@ -418,7 +410,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			$event = new Core\Event( $event_id );
 			
 			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+			if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 				return false;
 			}
 

@@ -72,10 +72,10 @@ function gatherpress_cache_invalidation_hooks_deactivate(): void {
 
 		$upcoming_events = get_option( $option_tracker::OPTION_KEY );
 	} else {
-
-		$upcoming_events = new \WP_Query(
+		$event_post_types = get_post_types_by_support( 'gatherpress-event-date' );
+		$upcoming_events  = new \WP_Query(
 			array(
-				'post_type'               => 'gatherpress_event',
+				'post_type'               => $event_post_types,
 				'post_status'             => 'publish',
 				'gatherpress_event_query' => 'upcoming',
 				'order'                   => 'desc',

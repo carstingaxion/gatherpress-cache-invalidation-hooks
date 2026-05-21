@@ -87,7 +87,7 @@ class ClearScheduleTest extends WP_UnitTestCase {
 	public function test_clear_scheduled_cron_removes_cron(): void {
 		$post_id = $this->factory()->post->create(
 			array(
-				'post_type'   => Cron_Scheduler::POST_TYPE,
+				'post_type'   => 'gatherpress_event',
 				'post_status' => 'publish',
 			)
 		);
@@ -120,7 +120,7 @@ class ClearScheduleTest extends WP_UnitTestCase {
 	public function test_clear_scheduled_cron_when_nothing_scheduled(): void {
 		$post_id = $this->factory()->post->create(
 			array(
-				'post_type'   => Cron_Scheduler::POST_TYPE,
+				'post_type'   => 'gatherpress_event',
 				'post_status' => 'publish',
 			)
 		);

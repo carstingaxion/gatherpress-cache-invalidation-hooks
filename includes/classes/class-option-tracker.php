@@ -54,14 +54,6 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		const OPTION_KEY = 'gatherpress_upcoming_events';
 
 		/**
-		 * The GatherPress event custom post type slug.
-		 *
-		 * @since 0.1.0
-		 * @var string
-		 */
-		const POST_TYPE = 'gatherpress_event';
-
-		/**
 		 * Constructor for the Setup class.
 		 *
 		 * Initializes and sets up various components of the plugin.
@@ -190,7 +182,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			foreach ( $tracked_ids as $event_id ) {
 				$event = new Core\Event( $event_id );
 				
-				if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+				if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 					// Clean up tracking for non-existent events.
 					$this->remove_from_tracking( $event_id );
 					continue;

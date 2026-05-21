@@ -49,7 +49,7 @@ class StatusTransitionTest extends WP_UnitTestCase {
 
 		$post_id = $this->factory()->post->create(
 			array(
-				'post_type'   => Cron_Scheduler::POST_TYPE,
+				'post_type'   => 'gatherpress_event',
 				'post_status' => $status,
 				'post_title'  => 'Test Event',
 			)
@@ -195,7 +195,7 @@ class StatusTransitionTest extends WP_UnitTestCase {
 	public function test_missing_end_date_not_scheduled(): void {
 		$post_id = $this->factory()->post->create(
 			array(
-				'post_type'   => Cron_Scheduler::POST_TYPE,
+				'post_type'   => 'gatherpress_event',
 				'post_status' => 'draft',
 			)
 		);
