@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 if ( ! class_exists( 'Option_Tracker' ) ) {
 	/**
 	 * Upcoming Events Option Tracker (Optional)
-	 * 
+	 *
 	 * An optional redundant tracking system can be enabled via filter to prevent missed events:
 	 * 1. All upcoming events are stored in a wp_option array
 	 * 2. A daily cron job checks this list for any events that have ended
@@ -76,7 +76,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * @return void
 		 */
 		protected function setup_hooks(): void {
-			
+
 			if ( ! $this->is_tracker_enabled() ) {
 				return;
 			}
@@ -87,7 +87,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 
 			// An event ended regularly, remove it from tracking.
 			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ) );
-			
+
 			// Schedule the daily check if not already scheduled.
 			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
 				wp_schedule_event( time(), 'daily', self::CRON_HOOK );
@@ -111,8 +111,8 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			 * database writes on every event status change, so it's disabled by default.
 			 *
 			 * Enable for high-value deployments where missing an event cleanup would be critical.
-			 * 
-			 * @example 
+			 *
+			 * @example
 			 * ```php
 			 * // Enable upcoming events option tracker
 			 * add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
@@ -155,15 +155,15 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 
 			// Get all tracked event IDs.
 			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
-			
+
 			// Ensure we have an array of integers.
 			if ( ! is_array( $tracked_ids_raw ) ) {
 				return;
 			}
 
-			/** 
+			/**
 			 * Cast to int array for type safety
-			 * 
+			 *
 			 * @var array<int> $tracked_ids
 			 */
 			$tracked_ids = array_filter(
@@ -172,31 +172,31 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 					return $id > 0;
 				}
 			);
-			
+
 			// Early return if no events to check.
 			if ( empty( $tracked_ids ) ) {
 				return;
 			}
-			
+
 			// Check each tracked event.
 			foreach ( $tracked_ids as $event_id ) {
 				$event = new Core\Event( $event_id );
-				
+
 				if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 					// Clean up tracking for non-existent events.
 					$this->remove_from_tracking( $event_id );
 					continue;
 				}
-				
+
 				// Check if event has ended.
 				// @phpstan-ignore-next-line.
 				if ( method_exists( $event, 'has_event_past' ) && $event->has_event_past() ) {
 
 					/**
-					 * Trigger the main event end action hook. 
+					 * Trigger the main event end action hook.
 					 *
 					 * Central hook for event end processing.
-					 * All cleanup operations (cache invalidation, tracking removal, etc.) 
+					 * All cleanup operations (cache invalidation, tracking removal, etc.)
 					 * are hooked to this action at various priorities.
 					 *
 					 * @since 0.1.0
@@ -225,25 +225,25 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		public function add_to_tracking( int $event_id ): void {
 			// Get current tracking list.
 			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
-			
+
 			// Ensure we have an array.
 			if ( ! is_array( $tracked_ids_raw ) ) {
 				$tracked_ids_raw = array();
 			}
 
-			/** 
+			/**
 			 * Cast to int array for type safety
-			 * 
+			 *
 			 * @var array<int> $tracked_ids
 			 */
 			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
-			
+
 			// Add the new ID.
 			$tracked_ids[] = $event_id;
-			
+
 			// Remove duplicates and re-index.
 			$tracked_ids = array_values( array_unique( $tracked_ids ) );
-			
+
 			// Save back to database.
 			update_option( self::OPTION_KEY, $tracked_ids );
 		}
@@ -269,19 +269,19 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 				return;
 			}
 
-			/** 
+			/**
 			 * Cast to int array for type safety
-			 * 
+			 *
 			 * @var array<int> $tracked_ids
 			 */
 			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
-			
+
 			// Cleanly removes all instances of the target ID.
 			$tracked_ids = array_diff( $tracked_ids, array( $event_id ) );
-			
+
 			// Re-index array to remove gaps.
 			$tracked_ids = array_values( $tracked_ids );
-			
+
 			// Save back to database.
 			update_option( self::OPTION_KEY, $tracked_ids );
 		}
