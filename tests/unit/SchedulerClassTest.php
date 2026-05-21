@@ -277,7 +277,6 @@ class SchedulerClassTest extends WP_UnitTestCase {
 	public function test_cron_scheduler_constants(): void {
 		$this->assertEquals( 'gatherpress_event_ended', Cron_Scheduler::ACTION_HOOK );
 		$this->assertEquals( 'gatherpress_event_ended_cron', Cron_Scheduler::CRON_HOOK );
-		$this->assertEquals( 'gatherpress_event', Cron_Scheduler::POST_TYPE );
 		$this->assertEquals( 'gatherpress_datetime_end_gmt', Cron_Scheduler::POST_META_KEY );
 	}
 
@@ -289,7 +288,6 @@ class SchedulerClassTest extends WP_UnitTestCase {
 	public function test_option_tracker_constants(): void {
 		$this->assertEquals( 'gatherpress_validate_events_ended', Option_Tracker::CRON_HOOK );
 		$this->assertEquals( 'gatherpress_upcoming_events', Option_Tracker::OPTION_KEY );
-		$this->assertEquals( 'gatherpress_event', Option_Tracker::POST_TYPE );
 	}
 
 	/**

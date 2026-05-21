@@ -47,14 +47,6 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		const CRON_HOOK = 'gatherpress_event_ended_cron';
 
 		/**
-		 * The GatherPress event custom post type slug.
-		 *
-		 * @since 0.1.0
-		 * @var string
-		 */
-		const POST_TYPE = 'gatherpress_event';
-
-		/**
 		 * The GatherPress event end post_meta key.
 		 *
 		 * @since 0.1.0
@@ -132,7 +124,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			if ( 'publish' === $new_status && 'publish' !== $old_status ) {
 				do_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', $post->ID, $post );
 			}
-			
+
 			// Event is being unpublished - clear the schedule.
 			if ( 'publish' === $old_status && 'publish' !== $new_status ) {
 				do_action( 'gatherpress_cache_invalidation_hooks_clear', $post->ID, $post );
@@ -217,12 +209,12 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 
 			/**
-			 * Trigger the main event end action hook. 
+			 * Trigger the main event end action hook.
 			 *
 			 * Central hook for event end processing.
-			 * All cleanup operations (cache invalidation, tracking removal, etc.) 
+			 * All cleanup operations (cache invalidation, tracking removal, etc.)
 			 * are hooked to this action at various priorities.
-			 * 
+			 *
 			 * @example
 			 * ```php
 			 * // Send email when events end
@@ -262,7 +254,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			/**
 			 * Filter cache keys to invalidate when an event ends.
-			 * 
+			 *
 			 * @example
 			 * ```php
 			 * // Extend cache keys to invalidate
@@ -317,9 +309,9 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 * @return void
 		 */
 		public function add_scheduled_cron( int $post_id ): void {
-			
+
 			$end_date = get_post_meta( $post_id, self::POST_META_KEY, true );
-			
+
 			// Validate end date exists and is a string.
 			if ( ! is_string( $end_date ) || empty( $end_date ) ) {
 				return;
@@ -327,7 +319,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			// Convert date string to Unix timestamp.
 			$end_timestamp = strtotime( $end_date );
-			
+
 			// Validate timestamp and ensure it's in the future.
 			if ( false === $end_timestamp || $end_timestamp <= time() ) {
 				return;
@@ -335,7 +327,7 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 
 			// Clear any existing schedule to prevent duplicates.
 			$this->clear_scheduled_cron( $post_id );
-			
+
 			// Schedule the cron event.
 			wp_schedule_single_event( $end_timestamp, self::CRON_HOOK, array( $post_id ) );
 		}
@@ -354,15 +346,15 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 		 */
 		public function clear_scheduled_cron( int $post_id ): void {
 			$post = get_post( $post_id );
-			
-			// Validate post exists and is a GatherPress event.
-			if ( ! $post instanceof \WP_Post || self::POST_TYPE !== $post->post_type ) {
+
+			// Validate post exists and is a GatherPress event-date supporting type.
+			if ( ! $post instanceof \WP_Post || ! post_type_supports( $post->post_type, 'gatherpress-event-date' ) ) {
 				return;
 			}
 
 			// Find the timestamp of the next scheduled event.
 			$timestamp = wp_next_scheduled( self::CRON_HOOK, array( $post_id ) );
-			
+
 			// If an event is scheduled, remove it.
 			if ( is_int( $timestamp ) && $timestamp > 0 ) {
 				wp_unschedule_event( $timestamp, self::CRON_HOOK, array( $post_id ) );
@@ -385,9 +377,9 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 
 			$event = new Core\Event( $event_id );
-			
+
 			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+			if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 				return false;
 			}
 
@@ -416,9 +408,9 @@ if ( ! class_exists( 'Cron_Scheduler' ) ) {
 			}
 
 			$event = new Core\Event( $event_id );
-			
+
 			// Validate the event still exists and is the correct post type.
-			if ( ! isset( $event->event ) || self::POST_TYPE !== $event->event->post_type ) {
+			if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
 				return false;
 			}
 
