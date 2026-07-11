@@ -1,271 +1,283 @@
 <?php
 /**
- * Integration tests for the upcoming events option tracker system.
- *
- * Tests the optional redundant tracking system that stores upcoming event IDs
- * in a wp_option and provides a daily cron check for missed events.
+ * Integration tests for the Option_Tracker class.
  *
  * @package GatherPress\Cache_Invalidation_Hooks
- * @since 0.1.0
+ * @since   0.1.0
  */
 
 use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 use GatherPress_Cache_Invalidation_Hooks\Option_Tracker;
 
 /**
- * Tests for the Option_Tracker class and its integration with the cron scheduler.
- *
- * Covers enabling/disabling tracking, adding/removing event IDs from tracking,
- * and the behavior of the validate_events_ended method.
+ * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker
  */
 class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
-	/**
-	 * The scheduler instance.
-	 *
-	 * @var Cron_Scheduler
-	 */
-	private Cron_Scheduler $scheduler;
-
-	/**
-	 * The option tracker instance.
-	 *
-	 * @var Option_Tracker
-	 */
 	private Option_Tracker $tracker;
 
-	/**
-	 * Set up test fixtures.
-	 */
+	/** @var string[] */
+	private array $supporting_types;
+
 	public function set_up(): void {
 		parent::set_up();
-		$this->scheduler = Cron_Scheduler::get_instance();
-		$this->tracker   = Option_Tracker::get_instance();
-
-		// Clean up the option before each test.
-		delete_option( Option_Tracker::OPTION_KEY );
+		$this->tracker          = Option_Tracker::get_instance();
+		$this->supporting_types = get_post_types_by_support( 'gatherpress-event-date' );
+		$this->delete_all_tracking_options();
 	}
 
-	/**
-	 * Tear down test fixtures.
-	 */
 	public function tear_down(): void {
-		// Remove any filters we added.
 		remove_all_filters( 'gatherpress_upcoming_events_option_tracker_enabled' );
-
-		// Clean up the option.
-		delete_option( Option_Tracker::OPTION_KEY );
-
+		remove_all_filters( 'gatherpress_upcoming_tracker_enabled' );
+		foreach ( $this->supporting_types as $pt ) {
+			remove_all_filters( "{$pt}_upcoming_tracker_enabled" );
+		}
+		$this->delete_all_tracking_options();
 		parent::tear_down();
 	}
 
-	/**
-	 * Test that tracking is disabled by default.
-	 *
-	 * When disabled, publishing an event should NOT add it to the tracking option.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::is_tracker_enabled
-	 */
-	public function test_tracking_disabled_by_default(): void {
-		$this->assertFalse(
-			$this->tracker->is_tracker_enabled(),
-			'Tracker should be disabled by default'
-		);
+	// ── Helpers ───────────────────────────────────────────────────────────────
 
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		$this->assertEmpty(
-			$tracked,
-			'Tracking option should be empty when feature is disabled'
-		);
+	private function delete_all_tracking_options(): void {
+		foreach ( $this->supporting_types as $pt ) {
+			delete_option( $this->tracker->option_key_for( $pt ) );
+		}
 	}
 
+	private function require_event_post_type(): string {
+		if ( ! in_array( 'gatherpress_event', $this->supporting_types, true ) ) {
+			$this->markTestSkipped( 'gatherpress_event post type not available.' );
+		}
+		return 'gatherpress_event';
+	}
+
+	private function seed( string $post_type, array $ids ): void {
+		update_option( $this->tracker->option_key_for( $post_type ), $ids );
+	}
+
+	private function tracked( string $post_type ): array {
+		return get_option( $this->tracker->option_key_for( $post_type ), array() );
+	}
+
+	// ── option_key_for() ──────────────────────────────────────────────────────
+
+	/** Option key follows "upcoming_{PT-slug}s" pattern. */
+	public function test_option_key_pattern(): void {
+		$this->assertSame( 'upcoming_gatherpress_events', $this->tracker->option_key_for( 'gatherpress_event' ) );
+		$this->assertSame( 'upcoming_gatherpress_productions', $this->tracker->option_key_for( 'gatherpress_production' ) );
+	}
+
+	// ── is_post_type_enabled() — default off ─────────────────────────────────
+
+	/** Every supporting type is disabled by default. */
+	public function test_disabled_by_default_for_all_types(): void {
+		foreach ( $this->supporting_types as $pt ) {
+			$this->assertFalse( $this->tracker->is_post_type_enabled( $pt ), "Should be disabled by default for {$pt}" );
+		}
+	}
+
+	// ── is_post_type_enabled() — general filter ───────────────────────────────
+
+	/** General filter enables every supporting post type. */
+	public function test_general_filter_enables_all_types(): void {
+		add_filter( 'gatherpress_upcoming_tracker_enabled', '__return_true' );
+		foreach ( $this->supporting_types as $pt ) {
+			$this->assertTrue( $this->tracker->is_post_type_enabled( $pt ), "General filter should enable {$pt}" );
+		}
+	}
+
+	/** General filter receives the post type as second argument. */
+	public function test_general_filter_receives_post_type_argument(): void {
+		$post_type = $this->require_event_post_type();
+		$captured  = null;
+		add_filter(
+			'gatherpress_upcoming_tracker_enabled',
+			function ( bool $enabled, string $pt ) use ( &$captured ): bool {
+				$captured = $pt;
+				return false;
+			},
+			10,
+			2
+		);
+		$this->tracker->is_post_type_enabled( $post_type );
+		$this->assertSame( $post_type, $captured );
+	}
+
+	// ── is_post_type_enabled() — per-type filter ─────────────────────────────
+
+	/** Per-type filter enables only its own type. */
+	public function test_per_type_filter_enables_only_that_type(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+
+		$this->assertTrue( $this->tracker->is_post_type_enabled( $post_type ) );
+
+		foreach ( $this->supporting_types as $other ) {
+			if ( $other === $post_type ) {
+				continue;
+			}
+			$this->assertFalse( $this->tracker->is_post_type_enabled( $other ), "Should not enable {$other}" );
+		}
+	}
+
+	// ── is_post_type_enabled() — deprecated filter ────────────────────────────
+
 	/**
-	 * Test that remove_from_tracking cleans the option array.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::remove_from_tracking
+	 * Deprecated filter still enables tracking and fires a deprecation notice
+	 * via apply_filters_deprecated() (which calls doing_it_wrong internally).
 	 */
-	public function test_remove_from_tracking_cleans_option(): void {
-		// Manually set some tracked IDs.
-		update_option( Option_Tracker::OPTION_KEY, array( 10, 20, 30 ) );
+	public function test_deprecated_filter_honoured_with_notice(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
+		$this->setExpectedIncorrectUsage( 'apply_filters_deprecated' );
+		$this->assertTrue( $this->tracker->is_post_type_enabled( $post_type ) );
+	}
 
-		$this->tracker->remove_from_tracking( 20 );
+	/** Deprecated filter returning false still fires the deprecation notice. */
+	public function test_deprecated_filter_false_still_fires_notice(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_false' );
+		$this->setExpectedIncorrectUsage( 'apply_filters_deprecated' );
+		$this->assertFalse( $this->tracker->is_post_type_enabled( $post_type ) );
+	}
 
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
+	// ── any_post_type_enabled() ───────────────────────────────────────────────
 
-		$this->assertCount( 2, $tracked );
+	/** Returns false when nothing is enabled. */
+	public function test_any_post_type_enabled_default_false(): void {
+		$this->assertFalse( $this->tracker->any_post_type_enabled() );
+	}
+
+	/** Returns true via the general filter. */
+	public function test_any_post_type_enabled_via_general_filter(): void {
+		add_filter( 'gatherpress_upcoming_tracker_enabled', '__return_true' );
+		$this->assertTrue( $this->tracker->any_post_type_enabled() );
+	}
+
+	/** Returns true when a single per-type filter is active. */
+	public function test_any_post_type_enabled_via_per_type_filter(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->assertTrue( $this->tracker->any_post_type_enabled() );
+	}
+
+	// ── add_to_tracking() ─────────────────────────────────────────────────────
+
+	/** Writes the post ID into the correct per-type option. */
+	public function test_add_to_tracking_writes_to_correct_option(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+
+		$post = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$this->tracker->add_to_tracking( $post->ID, $post );
+
+		$this->assertContains( $post->ID, $this->tracked( $post_type ) );
+	}
+
+	/** Is a no-op when the post type is not enabled. */
+	public function test_add_to_tracking_skipped_when_disabled(): void {
+		$post_type = $this->require_event_post_type();
+		$post      = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->assertNotContains( $post->ID, $this->tracked( $post_type ) );
+	}
+
+	/** Prevents duplicate entries. */
+	public function test_add_to_tracking_prevents_duplicates(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$post = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->assertCount( 1, $this->tracked( $post_type ) );
+	}
+
+	// ── remove_from_tracking() ────────────────────────────────────────────────
+
+	/** Removes the correct ID from the per-type option. */
+	public function test_remove_from_tracking_removes_correct_id(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->seed( $post_type, array( 10, 20, 30 ) );
+		$post = new WP_Post( (object) array( 'ID' => 20, 'post_type' => $post_type ) );
+		$this->tracker->remove_from_tracking( 20, $post );
+		$tracked = $this->tracked( $post_type );
+		$this->assertNotContains( 20, $tracked );
 		$this->assertContains( 10, $tracked );
 		$this->assertContains( 30, $tracked );
-		$this->assertNotContains( 20, $tracked );
 	}
 
-	/**
-	 * Test remove_from_tracking handles empty option gracefully.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::remove_from_tracking
-	 */
-	public function test_remove_from_tracking_handles_empty(): void {
-		// No option set - should not error.
-		$this->tracker->remove_from_tracking( 42 );
-
-		// Should complete without errors.
-		$this->assertTrue( true );
+	/** Re-indexes the remaining array keys. */
+	public function test_remove_from_tracking_reindexes(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->seed( $post_type, array( 10, 20, 30 ) );
+		$post = new WP_Post( (object) array( 'ID' => 10, 'post_type' => $post_type ) );
+		$this->tracker->remove_from_tracking( 10, $post );
+		$this->assertSame( array( 0, 1 ), array_keys( $this->tracked( $post_type ) ) );
 	}
 
-	/**
-	 * Test remove_from_tracking handles non-array option gracefully.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::remove_from_tracking
-	 */
-	public function test_remove_from_tracking_handles_non_array(): void {
-		update_option( Option_Tracker::OPTION_KEY, 'not_an_array' );
-
-		// Should not throw.
-		$this->tracker->remove_from_tracking( 42 );
-
-		$this->assertTrue( true );
+	/** Is a no-op when the post type is not enabled. */
+	public function test_remove_from_tracking_skipped_when_disabled(): void {
+		$post_type = $this->require_event_post_type();
+		$this->seed( $post_type, array( 10, 20 ) );
+		$post = new WP_Post( (object) array( 'ID' => 10, 'post_type' => $post_type ) );
+		$this->tracker->remove_from_tracking( 10, $post );
+		$this->assertContains( 10, $this->tracked( $post_type ) );
 	}
 
-	/**
-	 * Test remove_from_tracking re-indexes array keys.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::remove_from_tracking
-	 */
-	public function test_remove_from_tracking_reindexes_keys(): void {
-		update_option( Option_Tracker::OPTION_KEY, array( 10, 20, 30 ) );
-
-		$this->tracker->remove_from_tracking( 10 );
-
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		// Keys should be sequential (0, 1) not (1, 2).
-		$this->assertEquals( array( 20, 30 ), $tracked );
-		$this->assertSame( array( 0, 1 ), array_keys( $tracked ) );
+	/** Falls back to scrubbing all enabled types when post type cannot be resolved. */
+	public function test_remove_from_tracking_fallback_scrubs_enabled_types(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->seed( $post_type, array( 99 ) );
+		// post ID 99 does not exist → resolve_post_type returns '' → fallback path.
+		$this->tracker->remove_from_tracking( 99, 0 );
+		$this->assertNotContains( 99, $this->tracked( $post_type ) );
 	}
 
-	/**
-	 * Test add_to_tracking adds an event ID to the option.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::add_to_tracking
-	 */
-	public function test_add_to_tracking_adds_event_id(): void {
-		$this->tracker->add_to_tracking( 42 );
+	// ── validate_events_ended() ───────────────────────────────────────────────
 
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		$this->assertCount( 1, $tracked );
-		$this->assertContains( 42, $tracked );
-	}
-
-	/**
-	 * Test add_to_tracking prevents duplicates.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::add_to_tracking
-	 */
-	public function test_add_to_tracking_prevents_duplicates(): void {
-		$this->tracker->add_to_tracking( 42 );
-		$this->tracker->add_to_tracking( 42 );
-
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		$this->assertCount( 1, $tracked );
-	}
-
-	/**
-	 * Test add_to_tracking handles non-array option gracefully.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::add_to_tracking
-	 */
-	public function test_add_to_tracking_handles_non_array(): void {
-		update_option( Option_Tracker::OPTION_KEY, 'not_an_array' );
-
-		$this->tracker->add_to_tracking( 42 );
-
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		$this->assertIsArray( $tracked );
-		$this->assertContains( 42, $tracked );
-	}
-
-	/**
-	 * Test that tracking hooks are NOT registered when feature is disabled.
-	 *
-	 * Since the singleton pattern means hooks are registered once at init time,
-	 * and the feature is disabled by default, the tracker hooks should not be present.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker
-	 */
-	public function test_tracking_hook_registration_default(): void {
-		// By default, the feature is disabled, so remove_from_tracking
-		// should NOT be hooked to gatherpress_event_ended.
-		$priority = has_action(
-			Cron_Scheduler::ACTION_HOOK,
-			array( $this->tracker, 'remove_from_tracking' )
-		);
-
-		// When disabled, has_action returns false.
-		$this->assertFalse(
-			$priority,
-			'remove_from_tracking should not be hooked when feature is disabled'
-		);
-	}
-
-	/**
-	 * Test that validate_events_ended handles empty tracking list.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::validate_events_ended
-	 */
-	public function test_validate_events_ended_handles_empty_list(): void {
-		delete_option( Option_Tracker::OPTION_KEY );
-
-		// Should complete without errors.
+	/** Skips disabled post types — their option is left untouched. */
+	public function test_validate_events_ended_skips_disabled_types(): void {
+		$post_type = $this->require_event_post_type();
+		$this->seed( $post_type, array( 999999 ) );
 		$this->tracker->validate_events_ended();
-
-		$this->assertTrue( true );
+		$this->assertContains( 999999, $this->tracked( $post_type ) );
 	}
 
-	/**
-	 * Test that validate_events_ended handles non-array option.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::validate_events_ended
-	 */
-	public function test_validate_events_ended_handles_non_array(): void {
-		update_option( Option_Tracker::OPTION_KEY, 'invalid' );
-
-		// Should complete without errors.
-		$this->tracker->validate_events_ended();
-
-		$this->assertTrue( true );
-	}
-
-	/**
-	 * Test that validate_events_ended cleans up non-existent posts.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::validate_events_ended
-	 */
+	/** Removes stale IDs for non-existent posts (enabled type). */
 	public function test_validate_events_ended_cleans_nonexistent_posts(): void {
-		// Track a non-existent post ID.
-		update_option( Option_Tracker::OPTION_KEY, array( 999999 ) );
-
-		// This will attempt to instantiate GatherPress Core\Event, which should
-		// handle non-existent posts gracefully by removing them from tracking.
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->seed( $post_type, array( 999999 ) );
 		$this->tracker->validate_events_ended();
-
-		$tracked = get_option( Option_Tracker::OPTION_KEY, array() );
-
-		// Non-existent post should be removed from tracking.
-		$this->assertNotContains( 999999, $tracked );
+		$this->assertNotContains( 999999, $this->tracked( $post_type ) );
 	}
 
-	/**
-	 * Test the daily cron hook is NOT scheduled when feature is disabled.
-	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker
-	 */
-	public function test_daily_cron_not_scheduled_when_disabled(): void {
+	/** Handles an empty tracking list without errors. */
+	public function test_validate_events_ended_handles_empty_list(): void {
+		$post_type = $this->require_event_post_type();
+		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
+		$this->tracker->validate_events_ended();
+		$this->assertTrue( true );
+	}
+
+	// ── Hook registration ─────────────────────────────────────────────────────
+
+	/** remove_from_tracking is always registered on ACTION_HOOK (guard is inside the method). */
+	public function test_remove_from_tracking_always_hooked(): void {
+		$this->assertNotFalse(
+			has_action( Cron_Scheduler::ACTION_HOOK, array( $this->tracker, 'remove_from_tracking' ) ),
+			'remove_from_tracking should always be registered on ACTION_HOOK'
+		);
+	}
+
+	/** Daily cron is not scheduled when no post type is enabled. */
+	public function test_daily_cron_not_scheduled_when_all_disabled(): void {
 		$this->assertFalse(
 			wp_next_scheduled( Option_Tracker::CRON_HOOK ),
-			'Daily tracker cron should not be scheduled when feature is disabled'
+			'Daily cron should not be scheduled when no post type is enabled'
 		);
 	}
 }

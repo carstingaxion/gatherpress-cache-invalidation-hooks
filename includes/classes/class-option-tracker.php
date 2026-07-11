@@ -8,6 +8,7 @@
 namespace GatherPress_Cache_Invalidation_Hooks;
 
 use GatherPress\Core;
+use WP_Post;
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
@@ -17,15 +18,21 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 	 * Upcoming Events Option Tracker (Optional)
 	 *
 	 * An optional redundant tracking system can be enabled via filter to prevent missed events:
-	 * 1. All upcoming events are stored in a wp_option array
-	 * 2. A daily cron job checks this list for any events that have ended
-	 * 3. If an event's cron job failed, the daily check catches it and triggers cleanup
+	 * 1. Each post type that supports `gatherpress-event-date` gets its own wp_option tracking list.
+	 * 2. A daily cron job checks every list for posts whose end date has passed.
+	 * 3. If a scheduled cron job failed, the daily check catches it and triggers cleanup.
+	 *
+	 * One option key is maintained per supporting post type:
+	 *   `upcoming_{$post_type}s`
+	 *
+	 * This avoids mixing IDs from different post types in a single option and ensures that
+	 * validation always uses the correct GatherPress event object for the right type.
 	 *
 	 * Why Optional:
-	 * The upcoming events option tracker requires additional database writes on every event status change.
-	 * Most sites have reliable cron systems and don't need this redundancy. It's disabled
-	 * by default to minimize unnecessary database operations, but can be enabled for
-	 * high-value deployments where missing an event cleanup would be critical.
+	 * The upcoming events option tracker requires additional database writes on every event
+	 * status change. Most sites have reliable cron systems and don't need this redundancy.
+	 * It's disabled by default to minimize unnecessary database operations, but can be enabled
+	 * for high-value deployments where missing an event cleanup would be critical.
 	 *
 	 * To enable upcoming events option tracker:
 	 * add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
@@ -46,17 +53,25 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		const CRON_HOOK = 'gatherpress_validate_events_ended';
 
 		/**
-		 * The wp_option key for tracking upcoming events.
+		 * Prefix for the per-post-type wp_option tracking keys.
+		 *
+		 * The full key for a given post type is built as:
+		 *   self::OPTION_KEY_PREFIX . $post_type . 's'
+		 *
+		 * e.g. 'upcoming_gatherpress_events'
+		 *      'upcoming_gatherpress_productions'
 		 *
 		 * @since 0.1.0
 		 * @var string
 		 */
-		const OPTION_KEY = 'gatherpress_upcoming_events';
+		const OPTION_KEY_PREFIX = 'upcoming_';
 
 		/**
 		 * Constructor for the Setup class.
 		 *
 		 * Initializes and sets up various components of the plugin.
+		 *
+		 * @since 0.1.0
 		 */
 		protected function __construct() {
 			$this->setup_hooks();
@@ -66,224 +81,353 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 * Set up hooks for various purposes.
 		 *
 		 * Registers all necessary hooks:
-		 * - Monitors post status changes to manage redundant event tracking
-		 * - Cleans up tracking before post deletion
-		 * - Performs daily checks for ended events that may have been missed
-		 * - Schedules the daily cron job if enabled
+		 * - Monitors post status changes to manage redundant event tracking.
+		 * - Cleans up tracking before post deletion.
+		 * - Performs daily checks for ended events that may have been missed.
+		 * - Schedules the daily cron job if enabled.
 		 *
 		 * @since 0.1.0
 		 *
 		 * @return void
 		 */
 		protected function setup_hooks(): void {
+			// Always register the action hooks. Each callback checks per-post-type
+			// enablement at runtime so newly enabled types are picked up without
+			// needing to flush any cached gate result.
+			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_to_tracking' ), 10, 2 );
+			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'remove_from_tracking' ), 10, 2 );
+			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ), 10, 2 );
+			add_action( self::CRON_HOOK, array( $this, 'validate_events_ended' ) );
 
-			if ( ! $this->is_tracker_enabled() ) {
-				return;
-			}
-
-			// Waiting for post status transitions, post_meta changes or post delete.
-			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_to_tracking' ) );
-			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'remove_from_tracking' ) );
-
-			// An event ended regularly, remove it from tracking.
-			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ) );
-
-			// Schedule the daily check if not already scheduled.
-			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+			// Schedule the daily cron only when at least one post type is enabled.
+			if ( $this->any_post_type_enabled() && ! wp_next_scheduled( self::CRON_HOOK ) ) {
 				wp_schedule_event( time(), 'daily', self::CRON_HOOK );
 			}
-			add_action( self::CRON_HOOK, array( $this, 'validate_events_ended' ) );
 		}
 
 		/**
-		 * Check if upcoming events option tracker is enabled.
+		 * Returns true when the tracker is enabled for the given post type.
+		 *
+		 * Resolution order (first truthy value wins):
+		 * 1. Deprecated filter `gatherpress_upcoming_events_option_tracker_enabled`
+		 *    — handled via `apply_filters_deprecated()`, which fires a notice and
+		 *      still runs any hooked callbacks for backwards compatibility.
+		 * 2. General filter `gatherpress_upcoming_tracker_enabled` — enables all
+		 *    supporting post types at once.
+		 * 3. Per-type filter `{$post_type}_upcoming_tracker_enabled` — enables a
+		 *    single post type independently.
 		 *
 		 * @since 0.1.0
 		 *
-		 * @return bool True if upcoming events option tracker is enabled, false otherwise.
+		 * @param string $post_type The post type slug to check.
+		 * @return bool True when the tracker should run for this post type.
 		 */
-		public function is_tracker_enabled(): bool {
+		public function is_post_type_enabled( string $post_type ): bool {
+			// 1. Deprecated filter — apply_filters_deprecated() fires the notice
+			//    and runs any hooked callbacks so backwards compatibility is preserved.
+			if ( apply_filters_deprecated(
+				'gatherpress_upcoming_events_option_tracker_enabled',
+				array( false ),
+				'0.2.0',
+				sprintf(
+					/* translators: 1: new general filter name, 2: per-type filter pattern */
+					__(
+						'Use "%1$s" to enable all post types, or "%2$s" for a specific post type.',
+						'gatherpress-cache-invalidation-hooks'
+					),
+					'gatherpress_upcoming_tracker_enabled',
+					'{post_type}_upcoming_tracker_enabled'
+				)
+			) ) {
+				return true;
+			}
+
 			/**
-			 * Filter whether to enable the upcoming events option tracker tracking system.
+			 * Filter whether to enable the tracker for all supporting post types at once.
 			 *
-			 * The upcoming events option tracker provides redundant tracking of upcoming events and a daily
-			 * cron job to catch any events whose scheduled cron jobs failed. This adds
-			 * database writes on every event status change, so it's disabled by default.
-			 *
-			 * Enable for high-value deployments where missing an event cleanup would be critical.
+			 * When true, every post type that declares `gatherpress-event-date` support
+			 * gets its own tracking option and is included in the daily cron check.
 			 *
 			 * @example
 			 * ```php
-			 * // Enable upcoming events option tracker
-			 * add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
+			 * add_filter( 'gatherpress_upcoming_tracker_enabled', '__return_true' );
 			 * ```
 			 *
-			 * @since 0.1.0
+			 * @since 0.2.0
 			 *
-			 * @param bool $enabled Whether upcoming events option tracker is enabled. Default false.
+			 * @param bool   $enabled   Whether the tracker is globally enabled. Default false.
+			 * @param string $post_type The post type currently being evaluated.
 			 */
-			return apply_filters( 'gatherpress_upcoming_events_option_tracker_enabled', false );
+			if ( apply_filters( 'gatherpress_upcoming_tracker_enabled', false, $post_type ) ) {
+				return true;
+			}
+
+			/**
+			 * Filter whether to enable the tracker for a specific post type.
+			 *
+			 * The dynamic portion of the hook name, `$post_type`, refers to the
+			 * post type slug, e.g. `gatherpress_event` or `gatherpress_production`.
+			 *
+			 * Possible hook names include:
+			 *  - `gatherpress_event_upcoming_tracker_enabled`
+			 *  - `gatherpress_production_upcoming_tracker_enabled`
+			 *
+			 * @example
+			 * ```php
+			 * add_filter( 'gatherpress_event_upcoming_tracker_enabled', '__return_true' );
+			 * ```
+			 *
+			 * @since 0.2.0
+			 *
+			 * @param bool $enabled Whether the tracker is enabled for this post type. Default false.
+			 */
+			return (bool) apply_filters( "{$post_type}_upcoming_tracker_enabled", false );
 		}
 
+		/**
+		 * Returns true when at least one supporting post type has the tracker enabled.
+		 *
+		 * Used by setup_hooks() to decide whether to schedule the daily cron.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @return bool
+		 */
+		public function any_post_type_enabled(): bool {
+			foreach ( get_post_types_by_support( 'gatherpress-event-date' ) as $post_type ) {
+				if ( $this->is_post_type_enabled( $post_type ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Returns the wp_option key for tracking a specific post type.
+		 *
+		 * Each post type that declares `gatherpress-event-date` support gets its
+		 * own option so IDs from different types are never mixed.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param string $post_type The post type slug.
+		 * @return string The option key, e.g. 'upcoming_gatherpress_events'.
+		 */
+		public function option_key_for( string $post_type ): string {
+			return self::OPTION_KEY_PREFIX . $post_type . 's';
+		}
 
 		/**
 		 * Daily cron job to check for events that ended but weren't processed.
 		 *
-		 * If a scheduled cron job fails (server issues,
-		 * high load, etc.), this daily check ensures we eventually catch and
-		 * process ended events.
+		 * Iterates every post type that declares `gatherpress-event-date` support,
+		 * reads its dedicated tracking option, and validates each stored ID.
 		 *
-		 * Only runs when the upcoming events option tracker feature is enabled via the
-		 * 'gatherpress_upcoming_events_option_tracker_enabled' filter.
+		 * If a scheduled cron job fails (server issues, high load, etc.), this
+		 * daily check ensures we eventually catch and process ended events.
 		 *
-		 * Why daily: Balances thoroughness with resource usage. More frequent
-		 * checks would catch events sooner but increase server load. Daily is
-		 * reasonable for most use cases.
-		 *
-		 * Logic flow:
-		 * 1. Get all tracked upcoming event IDs from wp_option
-		 * 2. Loop through each ID
-		 * 3. Check if event has ended using GatherPress's validation
-		 * 4. If ended, trigger the normal end handling
-		 * 5. Remove from tracking (handled by validate_event_ended)
+		 * Logic flow per post type:
+		 * 1. Read the per-type option (list of upcoming post IDs).
+		 * 2. For each ID: load the post, confirm it still has the right post type.
+		 * 3. Instantiate Core\Event and check has_event_past().
+		 * 4. If ended, fire ACTION_HOOK (which also removes from tracking).
+		 * 5. If the post no longer exists or has wrong type, remove from tracking.
 		 *
 		 * @since 0.1.0
 		 *
 		 * @return void
 		 */
 		public function validate_events_ended(): void {
+			$supporting_types = get_post_types_by_support( 'gatherpress-event-date' );
 
-			// Get all tracked event IDs.
-			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
+			foreach ( $supporting_types as $post_type ) {
+				$this->validate_events_ended_for_type( $post_type );
+			}
+		}
 
-			// Ensure we have an array of integers.
-			if ( ! is_array( $tracked_ids_raw ) ) {
+		/**
+		 * Validates tracked event IDs for a single post type.
+		 *
+		 * Separated from validate_events_ended() so each post type is processed
+		 * independently — a bad ID in one type's list cannot abort processing of
+		 * another type's list.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param string $post_type The post type slug to validate.
+		 * @return void
+		 */
+		private function validate_events_ended_for_type( string $post_type ): void {
+			if ( ! $this->is_post_type_enabled( $post_type ) ) {
 				return;
 			}
 
-			/**
-			 * Cast to int array for type safety
-			 *
-			 * @var array<int> $tracked_ids
-			 */
-			$tracked_ids = array_filter(
-				array_map( '\intval', $tracked_ids_raw ),
-				function ( $id ) {
-					return $id > 0;
-				}
-			);
+			$tracked_ids = $this->get_tracked_ids( $post_type );
 
-			// Early return if no events to check.
 			if ( empty( $tracked_ids ) ) {
 				return;
 			}
 
-			// Check each tracked event.
-			foreach ( $tracked_ids as $event_id ) {
-				$event = new Core\Event( $event_id );
+			foreach ( $tracked_ids as $post_id ) {
+				$post = get_post( $post_id );
 
-				if ( ! isset( $event->event ) || ! post_type_supports( $event->event->post_type, 'gatherpress-event-date' ) ) {
-					// Clean up tracking for non-existent events.
-					$this->remove_from_tracking( $event_id );
+				// Clean up stale entries: post gone or post type changed.
+				if ( ! $post instanceof WP_Post || $post->post_type !== $post_type ) {
+					$this->remove_id_from_option( $post_id, $post_type );
 					continue;
 				}
 
-				// Check if event has ended.
-				// @phpstan-ignore-next-line.
-				if ( method_exists( $event, 'has_event_past' ) && $event->has_event_past() ) {
+				$event = new Core\Event( $post_id );
 
+				// @phpstan-ignore-next-line
+				if ( ! method_exists( $event, 'has_event_past' ) ) {
+					continue;
+				}
+
+				// @phpstan-ignore-next-line
+				if ( $event->has_event_past() ) {
 					/**
 					 * Trigger the main event end action hook.
 					 *
-					 * Central hook for event end processing.
-					 * All cleanup operations (cache invalidation, tracking removal, etc.)
-					 * are hooked to this action at various priorities.
+					 * Central hook for event end processing. All cleanup operations
+					 * (cache invalidation, tracking removal, etc.) are hooked to this
+					 * action at various priorities.
 					 *
 					 * @since 0.1.0
-					 * @param int        $event_id The ID of the event that ended.
-					 * @param Core\Event $event    The GatherPress event object.
+					 * @param int        $post_id The ID of the event that ended.
+					 * @param Core\Event $event   The GatherPress event object.
 					 */
-					do_action( Cron_Scheduler::ACTION_HOOK, $event_id, $event );
+					do_action( Cron_Scheduler::ACTION_HOOK, $post_id, $event );
 				}
 			}
 		}
 
 		/**
-		 * Add an event ID to the tracking list.
+		 * Add a post ID to the tracking list for its post type.
 		 *
-		 * Maintains an array of upcoming event IDs in wp_options. This list serves
-		 * as our safety net for catching events whose cron jobs failed.
+		 * Determines the post type from the WP_Post object passed as the second
+		 * argument (provided by gatherpress_cache_invalidation_hooks_new_upcoming)
+		 * and writes the ID into the dedicated per-type option.
 		 *
-		 * Only operates when upcoming events option tracker is enabled.
-		 *
-		 * @since 0.1.0
-		 *
-		 * @param int $event_id The event post ID to add to tracking.
-		 *
-		 * @return void
-		 */
-		public function add_to_tracking( int $event_id ): void {
-			// Get current tracking list.
-			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
-
-			// Ensure we have an array.
-			if ( ! is_array( $tracked_ids_raw ) ) {
-				$tracked_ids_raw = array();
-			}
-
-			/**
-			 * Cast to int array for type safety
-			 *
-			 * @var array<int> $tracked_ids
-			 */
-			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
-
-			// Add the new ID.
-			$tracked_ids[] = $event_id;
-
-			// Remove duplicates and re-index.
-			$tracked_ids = array_values( array_unique( $tracked_ids ) );
-
-			// Save back to database.
-			update_option( self::OPTION_KEY, $tracked_ids );
-		}
-
-		/**
-		 * Remove an event ID from the tracking list.
-		 *
-		 * Called when an event is unpublished, deleted, or successfully processed.
-		 * Keeps the tracking list clean and accurate.
-		 *
-		 * Only operates when upcoming events option tracker is enabled.
+		 * Only operates when the upcoming events option tracker is enabled.
 		 *
 		 * @since 0.1.0
 		 *
-		 * @param int $event_id The event post ID to remove from tracking.
+		 * @param int     $post_id The event post ID to add to tracking.
+		 * @param WP_Post $post    The post object (used to resolve the post type).
 		 *
 		 * @return void
 		 */
-		public function remove_from_tracking( int $event_id ): void {
-			// Get current tracking list.
-			$tracked_ids_raw = get_option( self::OPTION_KEY, array() );
-			if ( ! is_array( $tracked_ids_raw ) ) {
+		public function add_to_tracking( int $post_id, WP_Post $post ): void {
+			if ( ! $this->is_post_type_enabled( $post->post_type ) ) {
 				return;
 			}
 
-			/**
-			 * Cast to int array for type safety
-			 *
-			 * @var array<int> $tracked_ids
-			 */
-			$tracked_ids = array_map( '\intval', $tracked_ids_raw );
+			$tracked_ids   = $this->get_tracked_ids( $post->post_type );
+			$tracked_ids[] = $post_id;
+			$tracked_ids   = array_values( array_unique( $tracked_ids ) );
 
-			// Cleanly removes all instances of the target ID.
-			$tracked_ids = array_diff( $tracked_ids, array( $event_id ) );
+			update_option( $this->option_key_for( $post->post_type ), $tracked_ids );
+		}
 
-			// Re-index array to remove gaps.
-			$tracked_ids = array_values( $tracked_ids );
+		/**
+		 * Remove a post ID from the tracking list for its post type.
+		 *
+		 * Called when a post is unpublished, deleted, or successfully processed.
+		 * The second argument accepts either a WP_Post or null so the method can
+		 * be called from ACTION_HOOK which passes a Core\Event as second arg —
+		 * in that case the post type is resolved from the event object itself.
+		 *
+		 * Only operates when the upcoming events option tracker is enabled.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param int                    $post_id The event post ID to remove from tracking.
+		 * @param WP_Post|Core\Event|int $context WP_Post, Core\Event, or a bare post ID.
+		 *                                        Used only to resolve the post type.
+		 *
+		 * @return void
+		 */
+		public function remove_from_tracking( int $post_id, WP_Post|Core\Event|int $context = 0 ): void {
+			$post_type = $this->resolve_post_type( $post_id, $context );
 
-			// Save back to database.
-			update_option( self::OPTION_KEY, $tracked_ids );
+			if ( '' === $post_type ) {
+				// Fallback: scrub the ID from all enabled supporting types.
+				foreach ( get_post_types_by_support( 'gatherpress-event-date' ) as $type ) {
+					if ( $this->is_post_type_enabled( $type ) ) {
+						$this->remove_id_from_option( $post_id, $type );
+					}
+				}
+				return;
+			}
+
+			if ( ! $this->is_post_type_enabled( $post_type ) ) {
+				return;
+			}
+
+			$this->remove_id_from_option( $post_id, $post_type );
+		}
+
+		/**
+		 * Reads and normalises the tracking list for a given post type.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param string $post_type The post type slug.
+		 * @return array<int> Array of tracked post IDs (may be empty).
+		 */
+		private function get_tracked_ids( string $post_type ): array {
+			$raw = get_option( $this->option_key_for( $post_type ), array() );
+
+			if ( ! is_array( $raw ) ) {
+				return array();
+			}
+
+			return array_values(
+				array_filter(
+					array_map( 'intval', $raw ),
+					static fn( int $id ) => $id > 0
+				)
+			);
+		}
+
+		/**
+		 * Removes a single ID from the option for the given post type.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param int    $post_id   The post ID to remove.
+		 * @param string $post_type The post type whose option to update.
+		 * @return void
+		 */
+		private function remove_id_from_option( int $post_id, string $post_type ): void {
+			$tracked_ids = $this->get_tracked_ids( $post_type );
+			$tracked_ids = array_values( array_diff( $tracked_ids, array( $post_id ) ) );
+
+			update_option( $this->option_key_for( $post_type ), $tracked_ids );
+		}
+
+		/**
+		 * Resolves a post type string from a mixed context argument.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param int                    $post_id The post ID (fallback lookup).
+		 * @param WP_Post|Core\Event|int $context Context passed by the caller.
+		 * @return string Post type slug, or '' when it cannot be determined.
+		 */
+		private function resolve_post_type( int $post_id, WP_Post|Core\Event|int $context ): string {
+			if ( $context instanceof WP_Post ) {
+				return $context->post_type;
+			}
+
+			if ( $context instanceof Core\Event && isset( $context->event ) && $context->event instanceof WP_Post ) {
+				return $context->event->post_type;
+			}
+
+			// Fall back to a fresh get_post() lookup.
+			$post = get_post( $post_id );
+			return $post instanceof WP_Post ? $post->post_type : '';
 		}
 	}
 }
