@@ -8,4 +8,5 @@
 
 ## class-option-tracker.php
 
-- [`gatherpress_upcoming_events_option_tracker_enabled`](gatherpress_upcoming_events_option_tracker_enabled.md) Filter whether to enable the upcoming events option tracker tracking system.
+- [~~`gatherpress_upcoming_events_option_tracker_enabled`~~](gatherpress_upcoming_events_option_tracker_enabled.md) **DEPRECATED**
+- [`gatherpress_upcoming_tracker_enabled`](gatherpress_upcoming_tracker_enabled.md) Filter whether to enable the tracker for all supporting post types at once.

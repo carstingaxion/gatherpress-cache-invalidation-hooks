@@ -1,30 +1,50 @@
 # gatherpress_upcoming_events_option_tracker_enabled
 
+> **DEPRECATED**
+> This hook was deprecated in version 0.2.0.
 
-Filter whether to enable the upcoming events option tracker tracking system.
-
-The upcoming events option tracker provides redundant tracking of upcoming events and a daily
-cron job to catch any events whose scheduled cron jobs failed. This adds
-database writes on every event status change, so it's disabled by default.
-
-Enable for high-value deployments where missing an event cleanup would be critical.
-
-## Example
+## Auto-generated Example
 
 ```php
-// Enable upcoming events option tracker
-add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
+add_filter(
+   'gatherpress_upcoming_events_option_tracker_enabled',
+    function(
+        array $array,
+        string $0_2_0,
+        $sprintf_gatherpress_upcoming_tracker_enabled_post_type__upcoming_tracker_enabled
+    ) {
+        // Your code here.
+        return $array;
+    },
+    10,
+    3
+);
 ```
 
 ## Parameters
 
-- *`bool`* `$enabled` Whether upcoming events option tracker is enabled. Default false.
+- *`array`* `$array`
+- *`string`* `$0_2_0`
+- `$sprintf_gatherpress_upcoming_tracker_enabled_post_type__upcoming_tracker_enabled`
 
 ## Files
 
-- [includes/classes/class-option-tracker.php:125](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L125)
+- [includes/classes/class-option-tracker.php:128](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L128)
 ```php
-apply_filters( 'gatherpress_upcoming_events_option_tracker_enabled', false )
+apply_filters_deprecated(
+				'gatherpress_upcoming_events_option_tracker_enabled',
+				array( false ),
+				'0.2.0',
+				sprintf(
+					/* translators: 1: new general filter name, 2: per-type filter pattern */
+					__(
+						'Use "%1$s" to enable all post types, or "%2$s" for a specific post type.',
+						'gatherpress-cache-invalidation-hooks'
+					),
+					'gatherpress_upcoming_tracker_enabled',
+					'{post_type}_upcoming_tracker_enabled'
+				)
+			)
 ```
 
 
