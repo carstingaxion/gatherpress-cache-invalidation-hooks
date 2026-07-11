@@ -143,7 +143,9 @@ class SchedulerClassTest extends WP_UnitTestCase {
 	public function test_option_tracker_public_methods_exist(): void {
 		$expected_methods = array(
 			'get_instance',
-			'is_tracker_enabled',
+			'is_post_type_enabled',
+			'any_post_type_enabled',
+			'option_key_for',
 			'add_to_tracking',
 			'remove_from_tracking',
 			'validate_events_ended',
@@ -257,16 +259,19 @@ class SchedulerClassTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that is_tracker_enabled returns bool.
+	 * Test that is_post_type_enabled and any_post_type_enabled return bool.
 	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::is_tracker_enabled
+	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::is_post_type_enabled
+	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::any_post_type_enabled
 	 */
-	public function test_option_tracker_is_tracker_enabled_return_type(): void {
-		$reflection  = new ReflectionMethod( Option_Tracker::class, 'is_tracker_enabled' );
-		$return_type = $reflection->getReturnType();
+	public function test_option_tracker_enablement_methods_return_bool(): void {
+		foreach ( array( 'is_post_type_enabled', 'any_post_type_enabled' ) as $method_name ) {
+			$reflection  = new ReflectionMethod( Option_Tracker::class, $method_name );
+			$return_type = $reflection->getReturnType();
 
-		$this->assertNotNull( $return_type );
-		$this->assertEquals( 'bool', $return_type->getName() );
+			$this->assertNotNull( $return_type, "{$method_name} must declare a return type" );
+			$this->assertEquals( 'bool', $return_type->getName(), "{$method_name} must return bool" );
+		}
 	}
 
 	/**
@@ -287,17 +292,28 @@ class SchedulerClassTest extends WP_UnitTestCase {
 	 */
 	public function test_option_tracker_constants(): void {
 		$this->assertEquals( 'gatherpress_validate_events_ended', Option_Tracker::CRON_HOOK );
-		$this->assertEquals( 'gatherpress_upcoming_events', Option_Tracker::OPTION_KEY );
+		$this->assertEquals( 'upcoming_', Option_Tracker::OPTION_KEY_PREFIX );
 	}
 
 	/**
-	 * Test that is_tracker_enabled returns false by default.
+	 * Test that is_post_type_enabled returns false for all types by default.
 	 *
-	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::is_tracker_enabled
+	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::is_post_type_enabled
 	 */
 	public function test_option_tracker_disabled_by_default(): void {
-		$tracker = Option_Tracker::get_instance();
+		$tracker          = Option_Tracker::get_instance();
+		$supporting_types = get_post_types_by_support( 'gatherpress-event-date' );
 
-		$this->assertFalse( $tracker->is_tracker_enabled() );
+		if ( empty( $supporting_types ) ) {
+			$this->assertFalse( $tracker->any_post_type_enabled() );
+			return;
+		}
+
+		foreach ( $supporting_types as $post_type ) {
+			$this->assertFalse(
+				$tracker->is_post_type_enabled( $post_type ),
+				"Expected tracker disabled by default for {$post_type}"
+			);
+		}
 	}
 }

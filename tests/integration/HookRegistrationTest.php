@@ -173,29 +173,30 @@ class HookRegistrationTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that tracker hooks are NOT registered when feature is disabled.
+	 * Tracker hooks are always registered; per-type enablement is checked
+	 * at runtime inside each callback, not at hook-registration time.
 	 *
 	 * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker
 	 */
-	public function test_tracker_hooks_not_registered_when_disabled(): void {
-		$this->assertFalse(
+	public function test_tracker_hooks_always_registered(): void {
+		$this->assertNotFalse(
 			has_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this->tracker, 'add_to_tracking' ) ),
-			'add_to_tracking should not be hooked when tracker is disabled'
+			'add_to_tracking should always be hooked'
 		);
 
-		$this->assertFalse(
+		$this->assertNotFalse(
 			has_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this->tracker, 'remove_from_tracking' ) ),
-			'remove_from_tracking should not be hooked to clear action when tracker is disabled'
+			'remove_from_tracking should always be hooked to clear action'
 		);
 
-		$this->assertFalse(
+		$this->assertNotFalse(
 			has_action( Cron_Scheduler::ACTION_HOOK, array( $this->tracker, 'remove_from_tracking' ) ),
-			'remove_from_tracking should not be hooked to event ended when tracker is disabled'
+			'remove_from_tracking should always be hooked to event ended'
 		);
 
-		$this->assertFalse(
+		$this->assertNotFalse(
 			has_action( Option_Tracker::CRON_HOOK, array( $this->tracker, 'validate_events_ended' ) ),
-			'validate_events_ended should not be hooked when tracker is disabled'
+			'validate_events_ended should always be hooked'
 		);
 	}
 
