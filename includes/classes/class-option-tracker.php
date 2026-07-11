@@ -124,7 +124,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 */
 		public function is_post_type_enabled( string $post_type ): bool {
 			// 1. Deprecated filter — apply_filters_deprecated() fires the notice
-			//    and runs any hooked callbacks so backwards compatibility is preserved.
+			// and runs any hooked callbacks so backwards compatibility is preserved.
 			if ( apply_filters_deprecated(
 				'gatherpress_upcoming_events_option_tracker_enabled',
 				array( false ),
@@ -284,7 +284,6 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 					continue;
 				}
 
-				// @phpstan-ignore-next-line
 				if ( $event->has_event_past() ) {
 					/**
 					 * Trigger the main event end action hook.
@@ -385,7 +384,12 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 
 			return array_values(
 				array_filter(
-					array_map( 'intval', $raw ),
+					array_map(
+						static function ( mixed $v ): int {
+							return is_scalar( $v ) ? (int) $v : 0;
+						},
+						$raw
+					),
 					static fn( int $id ) => $id > 0
 				)
 			);
@@ -421,11 +425,11 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 				return $context->post_type;
 			}
 
-			if ( $context instanceof Core\Event && isset( $context->event ) && $context->event instanceof WP_Post ) {
+			if ( $context instanceof Core\Event && isset( $context->event ) ) {
 				return $context->event->post_type;
 			}
 
-			// Fall back to a fresh get_post() lookup.
+			// Fall back to a fresh get_post() lookup (context is int or unresolvable Event).
 			$post = get_post( $post_id );
 			return $post instanceof WP_Post ? $post->post_type : '';
 		}

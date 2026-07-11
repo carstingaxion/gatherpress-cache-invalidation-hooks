@@ -68,12 +68,21 @@ function gatherpress_cache_invalidation_hooks_deactivate(): void {
 	$cron_scheduler = \GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler::get_instance();
 	$option_tracker = \GatherPress_Cache_Invalidation_Hooks\Option_Tracker::get_instance();
 
-	if ( $option_tracker->is_tracker_enabled() ) {
+	$event_post_types = get_post_types_by_support( 'gatherpress-event-date' );
 
-		$upcoming_events = get_option( $option_tracker::OPTION_KEY );
+	if ( $option_tracker->any_post_type_enabled() ) {
+		// Collect tracked IDs from every enabled per-type option.
+		$upcoming_events = array();
+		foreach ( $event_post_types as $post_type ) {
+			if ( $option_tracker->is_post_type_enabled( $post_type ) ) {
+				$tracked = get_option( $option_tracker->option_key_for( $post_type ), array() );
+				if ( is_array( $tracked ) ) {
+					$upcoming_events = array_merge( $upcoming_events, $tracked );
+				}
+			}
+		}
 	} else {
-		$event_post_types = get_post_types_by_support( 'gatherpress-event-date' );
-		$upcoming_events  = new \WP_Query(
+		$upcoming_events = new \WP_Query(
 			array(
 				'post_type'               => $event_post_types,
 				'post_status'             => 'publish',
@@ -98,17 +107,15 @@ function gatherpress_cache_invalidation_hooks_deactivate(): void {
 		$cron_scheduler->invalidate_caches( $event_id );
 	}
 
-	if ( $option_tracker->is_tracker_enabled() ) {
-		// Find the timestamp of the next scheduled daily event.
-		$timestamp = wp_next_scheduled( $option_tracker::CRON_HOOK );
+	// Unschedule the daily validation cron.
+	$timestamp = wp_next_scheduled( $option_tracker::CRON_HOOK );
+	if ( is_int( $timestamp ) && $timestamp > 0 ) {
+		wp_unschedule_event( $timestamp, $option_tracker::CRON_HOOK );
+	}
 
-		// If an event is scheduled, remove it.
-		if ( is_int( $timestamp ) && $timestamp > 0 ) {
-			wp_unschedule_event( $timestamp, $option_tracker::CRON_HOOK );
-		}
-
-		// Delete the tracking option.
-		delete_option( $option_tracker::OPTION_KEY );
+	// Delete all per-type tracking options.
+	foreach ( get_post_types_by_support( 'gatherpress-event-date' ) as $post_type ) {
+		delete_option( $option_tracker->option_key_for( $post_type ) );
 	}
 }
 register_deactivation_hook( __FILE__, 'gatherpress_cache_invalidation_hooks_deactivate' );

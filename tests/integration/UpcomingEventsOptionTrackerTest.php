@@ -10,15 +10,29 @@ use GatherPress_Cache_Invalidation_Hooks\Cron_Scheduler;
 use GatherPress_Cache_Invalidation_Hooks\Option_Tracker;
 
 /**
+ * Tests for Option_Tracker.
+ *
  * @covers \GatherPress_Cache_Invalidation_Hooks\Option_Tracker
  */
 class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
+	/**
+	 * The option tracker instance under test.
+	 *
+	 * @var Option_Tracker
+	 */
 	private Option_Tracker $tracker;
 
-	/** @var string[] */
+	/**
+	 * Post types that declare gatherpress-event-date support in this environment.
+	 *
+	 * @var string[]
+	 */
 	private array $supporting_types;
 
+	/**
+	 * Set up test fixtures.
+	 */
 	public function set_up(): void {
 		parent::set_up();
 		$this->tracker          = Option_Tracker::get_instance();
@@ -26,6 +40,9 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 		$this->delete_all_tracking_options();
 	}
 
+	/**
+	 * Tear down — remove filters and clean options.
+	 */
 	public function tear_down(): void {
 		remove_all_filters( 'gatherpress_upcoming_events_option_tracker_enabled' );
 		remove_all_filters( 'gatherpress_upcoming_tracker_enabled' );
@@ -38,12 +55,18 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
 
+	/**
+	 * Deletes all per-type tracking options.
+	 */
 	private function delete_all_tracking_options(): void {
 		foreach ( $this->supporting_types as $pt ) {
 			delete_option( $this->tracker->option_key_for( $pt ) );
 		}
 	}
 
+	/**
+	 * Returns a supported post type or skips when GatherPress is not active.
+	 */
 	private function require_event_post_type(): string {
 		if ( ! in_array( 'gatherpress_event', $this->supporting_types, true ) ) {
 			$this->markTestSkipped( 'gatherpress_event post type not available.' );
@@ -51,10 +74,22 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 		return 'gatherpress_event';
 	}
 
+	/**
+	 * Seeds the tracking option for a post type with the given IDs.
+	 *
+	 * @param string $post_type Post type slug.
+	 * @param int[]  $ids       IDs to write.
+	 */
 	private function seed( string $post_type, array $ids ): void {
 		update_option( $this->tracker->option_key_for( $post_type ), $ids );
 	}
 
+	/**
+	 * Reads the tracking option for a post type.
+	 *
+	 * @param string $post_type Post type slug.
+	 * @return int[]
+	 */
 	private function tracked( string $post_type ): array {
 		return get_option( $this->tracker->option_key_for( $post_type ), array() );
 	}
@@ -124,12 +159,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
 	/**
 	 * Deprecated filter still enables tracking and fires a deprecation notice
-	 * via apply_filters_deprecated() (which calls doing_it_wrong internally).
+	 * via apply_filters_deprecated() — caught by setExpectedDeprecated().
 	 */
 	public function test_deprecated_filter_honoured_with_notice(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_true' );
-		$this->setExpectedIncorrectUsage( 'apply_filters_deprecated' );
+		$this->setExpectedDeprecated( 'gatherpress_upcoming_events_option_tracker_enabled' );
 		$this->assertTrue( $this->tracker->is_post_type_enabled( $post_type ) );
 	}
 
@@ -137,7 +172,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_deprecated_filter_false_still_fires_notice(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( 'gatherpress_upcoming_events_option_tracker_enabled', '__return_false' );
-		$this->setExpectedIncorrectUsage( 'apply_filters_deprecated' );
+		$this->setExpectedDeprecated( 'gatherpress_upcoming_events_option_tracker_enabled' );
 		$this->assertFalse( $this->tracker->is_post_type_enabled( $post_type ) );
 	}
 
@@ -168,7 +203,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
 
-		$post = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$post = $this->factory()->post->create_and_get(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
+			) 
+		);
 		$this->tracker->add_to_tracking( $post->ID, $post );
 
 		$this->assertContains( $post->ID, $this->tracked( $post_type ) );
@@ -177,7 +217,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	/** Is a no-op when the post type is not enabled. */
 	public function test_add_to_tracking_skipped_when_disabled(): void {
 		$post_type = $this->require_event_post_type();
-		$post      = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$post      = $this->factory()->post->create_and_get(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
+			) 
+		);
 		$this->tracker->add_to_tracking( $post->ID, $post );
 		$this->assertNotContains( $post->ID, $this->tracked( $post_type ) );
 	}
@@ -186,7 +231,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_add_to_tracking_prevents_duplicates(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$post = $this->factory()->post->create_and_get( array( 'post_type' => $post_type, 'post_status' => 'publish' ) );
+		$post = $this->factory()->post->create_and_get(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
+			) 
+		);
 		$this->tracker->add_to_tracking( $post->ID, $post );
 		$this->tracker->add_to_tracking( $post->ID, $post );
 		$this->assertCount( 1, $this->tracked( $post_type ) );
@@ -199,7 +249,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
 		$this->seed( $post_type, array( 10, 20, 30 ) );
-		$post = new WP_Post( (object) array( 'ID' => 20, 'post_type' => $post_type ) );
+		$post = new WP_Post(
+			(object) array(
+				'ID'        => 20,
+				'post_type' => $post_type,
+			) 
+		);
 		$this->tracker->remove_from_tracking( 20, $post );
 		$tracked = $this->tracked( $post_type );
 		$this->assertNotContains( 20, $tracked );
@@ -212,7 +267,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
 		$this->seed( $post_type, array( 10, 20, 30 ) );
-		$post = new WP_Post( (object) array( 'ID' => 10, 'post_type' => $post_type ) );
+		$post = new WP_Post(
+			(object) array(
+				'ID'        => 10,
+				'post_type' => $post_type,
+			) 
+		);
 		$this->tracker->remove_from_tracking( 10, $post );
 		$this->assertSame( array( 0, 1 ), array_keys( $this->tracked( $post_type ) ) );
 	}
@@ -221,7 +281,12 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_remove_from_tracking_skipped_when_disabled(): void {
 		$post_type = $this->require_event_post_type();
 		$this->seed( $post_type, array( 10, 20 ) );
-		$post = new WP_Post( (object) array( 'ID' => 10, 'post_type' => $post_type ) );
+		$post = new WP_Post(
+			(object) array(
+				'ID'        => 10,
+				'post_type' => $post_type,
+			) 
+		);
 		$this->tracker->remove_from_tracking( 10, $post );
 		$this->assertContains( 10, $this->tracked( $post_type ) );
 	}
@@ -265,7 +330,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
 	// ── Hook registration ─────────────────────────────────────────────────────
 
-	/** remove_from_tracking is always registered on ACTION_HOOK (guard is inside the method). */
+	/** Remove_from_tracking is always registered on ACTION_HOOK (guard is inside the method). */
 	public function test_remove_from_tracking_always_hooked(): void {
 		$this->assertNotFalse(
 			has_action( Cron_Scheduler::ACTION_HOOK, array( $this->tracker, 'remove_from_tracking' ) ),
