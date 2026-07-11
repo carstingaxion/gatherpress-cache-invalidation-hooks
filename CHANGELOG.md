@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/compare/0.4.0...HEAD)
+## [Unreleased](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/compare/0.5.0...HEAD)
+
+## [0.5.0](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/compare/0.4.0...0.5.0) - 2026-07-11
+
+### 🚀 Added
+
+- Refactor: one option per post type, per-type enabled filters ([#62](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/pull/62))
 
 ## [0.4.0](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/compare/0.3.0...0.4.0) - 2026-05-21
 
