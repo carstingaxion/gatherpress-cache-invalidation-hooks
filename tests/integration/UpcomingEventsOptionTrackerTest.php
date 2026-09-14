@@ -209,7 +209,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->tracker->add_to_tracking( $post->ID );
 
 		$this->assertContains( $post->ID, $this->tracked( $post_type ) );
 	}
@@ -223,7 +223,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->tracker->add_to_tracking( $post->ID );
 		$this->assertNotContains( $post->ID, $this->tracked( $post_type ) );
 	}
 
@@ -237,8 +237,8 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->add_to_tracking( $post->ID, $post );
-		$this->tracker->add_to_tracking( $post->ID, $post );
+		$this->tracker->add_to_tracking( $post->ID );
+		$this->tracker->add_to_tracking( $post->ID );
 		$this->assertCount( 1, $this->tracked( $post_type ) );
 	}
 
@@ -248,57 +248,55 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_remove_from_tracking_removes_correct_id(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$this->seed( $post_type, array( 10, 20, 30 ) );
-		$post = new WP_Post(
-			(object) array(
-				'ID'        => 20,
-				'post_type' => $post_type,
+		$post_id    = $this->factory()->post->create(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->remove_from_tracking( 20, $post );
+		$post_id_10 = $post_id + 10;
+		$post_id_20 = $post_id + 20;
+		$this->seed( $post_type, array( $post_id, $post_id_10, $post_id_20 ) );
+
+		$this->tracker->remove_from_tracking( $post_id );
 		$tracked = $this->tracked( $post_type );
-		$this->assertNotContains( 20, $tracked );
-		$this->assertContains( 10, $tracked );
-		$this->assertContains( 30, $tracked );
+		$this->assertNotContains( $post_id, $tracked );
+		$this->assertContains( $post_id_10, $tracked );
+		$this->assertContains( $post_id_20, $tracked );
 	}
 
 	/** Re-indexes the remaining array keys. */
 	public function test_remove_from_tracking_reindexes(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$this->seed( $post_type, array( 10, 20, 30 ) );
-		$post = new WP_Post(
-			(object) array(
-				'ID'        => 10,
-				'post_type' => $post_type,
+		$post_id    = $this->factory()->post->create(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->remove_from_tracking( 10, $post );
+		$post_id_10 = $post_id + 10;
+		$post_id_20 = $post_id + 20;
+		$this->seed( $post_type, array( $post_id, $post_id_10, $post_id_20 ) );
+
+		$this->tracker->remove_from_tracking( $post_id );
 		$this->assertSame( array( 0, 1 ), array_keys( $this->tracked( $post_type ) ) );
 	}
 
 	/** Is a no-op when the post type is not enabled. */
 	public function test_remove_from_tracking_skipped_when_disabled(): void {
-		$post_type = $this->require_event_post_type();
-		$this->seed( $post_type, array( 10, 20 ) );
-		$post = new WP_Post(
-			(object) array(
-				'ID'        => 10,
-				'post_type' => $post_type,
+		$post_type  = $this->require_event_post_type();
+		$post_id    = $this->factory()->post->create(
+			array(
+				'post_type'   => $post_type,
+				'post_status' => 'publish',
 			) 
 		);
-		$this->tracker->remove_from_tracking( 10, $post );
-		$this->assertContains( 10, $this->tracked( $post_type ) );
-	}
+		$post_id_10 = $post_id + 10;
+		$this->seed( $post_type, array( $post_id, $post_id_10 ) );
 
-	/** Falls back to scrubbing all enabled types when post type cannot be resolved. */
-	public function test_remove_from_tracking_fallback_scrubs_enabled_types(): void {
-		$post_type = $this->require_event_post_type();
-		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$this->seed( $post_type, array( 99 ) );
-		// post ID 99 does not exist → resolve_post_type returns '' → fallback path.
-		$this->tracker->remove_from_tracking( 99, 0 );
-		$this->assertNotContains( 99, $this->tracked( $post_type ) );
+		$this->tracker->remove_from_tracking( $post_id );
+		$this->assertContains( $post_id, $this->tracked( $post_type ) );
 	}
 
 	// ── validate_events_ended() ───────────────────────────────────────────────

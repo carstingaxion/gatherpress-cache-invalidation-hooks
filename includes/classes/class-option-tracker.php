@@ -8,6 +8,8 @@
 namespace GatherPress_Cache_Invalidation_Hooks;
 
 use GatherPress\Core;
+use GatherPress\Core\Event;
+use GatherPress\Core\Traits\Singleton;
 use WP_Post;
 
 // Exit if accessed directly.
@@ -42,7 +44,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 	 */
 	class Option_Tracker {
 
-		use Core\Traits\Singleton;
+		use Singleton;
 
 		/**
 		 * The WordPress cron hook for the daily check.
@@ -94,9 +96,9 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			// Always register the action hooks. Each callback checks per-post-type
 			// enablement at runtime so newly enabled types are picked up without
 			// needing to flush any cached gate result.
-			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_to_tracking' ), 10, 2 );
-			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'remove_from_tracking' ), 10, 2 );
-			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ), 10, 2 );
+			add_action( 'gatherpress_cache_invalidation_hooks_new_upcoming', array( $this, 'add_to_tracking' ) );
+			add_action( 'gatherpress_cache_invalidation_hooks_clear', array( $this, 'remove_from_tracking' ) );
+			add_action( Cron_Scheduler::ACTION_HOOK, array( $this, 'remove_from_tracking' ) );
 			add_action( self::CRON_HOOK, array( $this, 'validate_events_ended' ) );
 
 			// Schedule the daily cron only when at least one post type is enabled.
@@ -277,12 +279,7 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 					continue;
 				}
 
-				$event = new Core\Event( $post_id );
-
-				// @phpstan-ignore-next-line
-				if ( ! method_exists( $event, 'has_event_past' ) ) {
-					continue;
-				}
+				$event = new Event( $post_id );
 
 				if ( $event->has_event_past() ) {
 					/**
@@ -294,9 +291,8 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 					 *
 					 * @since 0.1.0
 					 * @param int        $post_id The ID of the event that ended.
-					 * @param Core\Event $event   The GatherPress event object.
 					 */
-					do_action( Cron_Scheduler::ACTION_HOOK, $post_id, $event );
+					do_action( Cron_Scheduler::ACTION_HOOK, $post_id );
 				}
 			}
 		}
@@ -312,13 +308,14 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 *
 		 * @since 0.1.0
 		 *
-		 * @param int     $post_id The event post ID to add to tracking.
-		 * @param WP_Post $post    The post object (used to resolve the post type).
+		 * @param int $post_id The event post ID to add to tracking.
 		 *
 		 * @return void
 		 */
-		public function add_to_tracking( int $post_id, WP_Post $post ): void {
-			if ( ! $this->is_post_type_enabled( $post->post_type ) ) {
+		public function add_to_tracking( int $post_id ): void {
+			$post = get_post( $post_id );
+
+			if ( ! $post instanceof WP_Post || ! $this->is_post_type_enabled( $post->post_type ) ) {
 				return;
 			}
 
@@ -341,30 +338,18 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 		 *
 		 * @since 0.1.0
 		 *
-		 * @param int                    $post_id The event post ID to remove from tracking.
-		 * @param WP_Post|Core\Event|int $context WP_Post, Core\Event, or a bare post ID.
-		 *                                        Used only to resolve the post type.
+		 * @param int $post_id The event post ID to remove from tracking.
 		 *
 		 * @return void
 		 */
-		public function remove_from_tracking( int $post_id, WP_Post|Core\Event|int $context = 0 ): void {
-			$post_type = $this->resolve_post_type( $post_id, $context );
+		public function remove_from_tracking( int $post_id ): void {
+			$post = get_post( $post_id );
 
-			if ( '' === $post_type ) {
-				// Fallback: scrub the ID from all enabled supporting types.
-				foreach ( get_post_types_by_support( 'gatherpress-event-date' ) as $type ) {
-					if ( $this->is_post_type_enabled( $type ) ) {
-						$this->remove_id_from_option( $post_id, $type );
-					}
-				}
+			if ( ! $post instanceof WP_Post || ! $this->is_post_type_enabled( $post->post_type ) ) {
 				return;
 			}
 
-			if ( ! $this->is_post_type_enabled( $post_type ) ) {
-				return;
-			}
-
-			$this->remove_id_from_option( $post_id, $post_type );
+			$this->remove_id_from_option( $post_id, $post->post_type );
 		}
 
 		/**
@@ -409,29 +394,6 @@ if ( ! class_exists( 'Option_Tracker' ) ) {
 			$tracked_ids = array_values( array_diff( $tracked_ids, array( $post_id ) ) );
 
 			update_option( $this->option_key_for( $post_type ), $tracked_ids );
-		}
-
-		/**
-		 * Resolves a post type string from a mixed context argument.
-		 *
-		 * @since 0.1.0
-		 *
-		 * @param int                    $post_id The post ID (fallback lookup).
-		 * @param WP_Post|Core\Event|int $context Context passed by the caller.
-		 * @return string Post type slug, or '' when it cannot be determined.
-		 */
-		private function resolve_post_type( int $post_id, WP_Post|Core\Event|int $context ): string {
-			if ( $context instanceof WP_Post ) {
-				return $context->post_type;
-			}
-
-			if ( $context instanceof Core\Event && isset( $context->event ) ) {
-				return $context->event->post_type;
-			}
-
-			// Fall back to a fresh get_post() lookup (context is int or unresolvable Event).
-			$post = get_post( $post_id );
-			return $post instanceof WP_Post ? $post->post_type : '';
 		}
 	}
 }
