@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:  GatherPress Cache Invalidation Hooks
- * Plugin URI:
+ * Plugin URI:   https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks
  * Description:  Cache Invalidation system based on event end dates, similar to WordPress scheduled posts, but for GatherPress.
  * Author:       carstenbach & WordPress Telex
  * Author URI:
