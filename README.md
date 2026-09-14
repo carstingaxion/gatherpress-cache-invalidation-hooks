@@ -101,6 +101,14 @@ add_action( 'pre_get_posts', function( $query ) {
 } );
 ```
 
+## Developer Documentation
+
+There is some developer documentation available at  [docs/developer/README.md](docs/developer/README.md)
+
+### Filter Hooks Reference
+
+The plugin provides several filter hooks for customization, documented in [docs/developer/hooks/Hooks.md](docs/developer/hooks/Hooks.md)
+
 ## Changelog
 
 All notable changes to this project will be documented in the [CHANGELOG.md](CHANGELOG.md).
