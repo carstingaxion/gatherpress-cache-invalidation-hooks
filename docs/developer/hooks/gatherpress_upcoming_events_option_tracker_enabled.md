@@ -29,7 +29,7 @@ add_filter(
 
 ## Files
 
-- [includes/classes/class-option-tracker.php:128](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L128)
+- [includes/classes/class-option-tracker.php:130](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-option-tracker.php#L130)
 ```php
 apply_filters_deprecated(
 				'gatherpress_upcoming_events_option_tracker_enabled',
