@@ -11,7 +11,7 @@ are hooked to this action at various priorities.
 
 ```php
 // Send email when events end
-add_action( 'gatherpress_event_ended', function( $event_id, $event ) {
+add_action( 'gatherpress_event_ended', function( $event_id ) {
     // Your custom logic here
     delete_transient( "my_event_data_{$event_id}" );
     wp_mail( 'admin@example.com', 'Event Ended', "Event {$event_id} has concluded." );
@@ -20,14 +20,13 @@ add_action( 'gatherpress_event_ended', function( $event_id, $event ) {
 
 ## Parameters
 
-- *`int`* `$event_id` The ID of the event that ended.
-- *`GatherPress\Core\Event`* `$event` The GatherPress event object.
+- *`int`* `$event_id` The post ID of the event that ended.
 
 ## Files
 
-- [includes/classes/class-cron-scheduler.php:232](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L232)
+- [includes/classes/class-cron-scheduler.php:229](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L229)
 ```php
-do_action( 'gatherpress_event_ended', $event_id, $event )
+do_action( 'gatherpress_event_ended', $event_id )
 ```
 
 

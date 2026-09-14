@@ -7,35 +7,33 @@ add_action(
    'gatherpress_cache_invalidation_hooks_clear',
     function(
         $ID,
-        $post
+        $post = null
     ) {
         // Your code here.
-    },
-    10,
-    2
+    }
 );
 ```
 
 ## Parameters
 
-- `$ID` Other variable names: `$event->ID`
-- `$post` Other variable names: `$event`
+- `$ID` Other variable names: `$object_id`, `$post_id`
+- `$post`
 
 ## Files
 
-- [includes/classes/class-cron-scheduler.php:130](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L130)
+- [includes/classes/class-cron-scheduler.php:135](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L135)
 ```php
 do_action( 'gatherpress_cache_invalidation_hooks_clear', $post->ID, $post )
 ```
 
-- [includes/classes/class-cron-scheduler.php:169](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L169)
+- [includes/classes/class-cron-scheduler.php:171](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L171)
 ```php
-do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event )
+do_action( 'gatherpress_cache_invalidation_hooks_clear', $object_id )
 ```
 
-- [includes/classes/class-cron-scheduler.php:187](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L187)
+- [includes/classes/class-cron-scheduler.php:186](https://github.com/carstingaxion/gatherpress-cache-invalidation-hooks/blob/main/includes/classes/class-cron-scheduler.php#L186)
 ```php
-do_action( 'gatherpress_cache_invalidation_hooks_clear', $event->event->ID, $event->event )
+do_action( 'gatherpress_cache_invalidation_hooks_clear', $post_id )
 ```
 
 
