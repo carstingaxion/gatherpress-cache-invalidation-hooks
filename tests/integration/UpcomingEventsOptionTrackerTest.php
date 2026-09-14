@@ -248,7 +248,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_remove_from_tracking_removes_correct_id(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$post_id = $this->factory()->post->create(
+		$post_id    = $this->factory()->post->create(
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'publish',
@@ -269,7 +269,7 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 	public function test_remove_from_tracking_reindexes(): void {
 		$post_type = $this->require_event_post_type();
 		add_filter( "{$post_type}_upcoming_tracker_enabled", '__return_true' );
-		$post_id = $this->factory()->post->create(
+		$post_id    = $this->factory()->post->create(
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'publish',
@@ -285,8 +285,8 @@ class UpcomingEventsOptionTrackerTest extends WP_UnitTestCase {
 
 	/** Is a no-op when the post type is not enabled. */
 	public function test_remove_from_tracking_skipped_when_disabled(): void {
-		$post_type = $this->require_event_post_type();
-		$post_id = $this->factory()->post->create(
+		$post_type  = $this->require_event_post_type();
+		$post_id    = $this->factory()->post->create(
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'publish',
